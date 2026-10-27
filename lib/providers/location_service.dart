@@ -1,4 +1,6 @@
+import 'dart:convert';
 import 'package:flutter/foundation.dart';
+import 'package:http/http.dart' as http;
 import '../models/event_model.dart';
 import '../models/post_model.dart';
 import '../services/geo_locator_helper.dart';
@@ -78,6 +80,34 @@ class LocationService extends ChangeNotifier {
   bool get hasRealGpsFix => _hasRealGpsFix;
   String? get locationStatus => _locationStatus;
 
+  /// Returns nicely formatted coordinates, e.g. "9.9406° N, 76.2653° E"
+  String get formattedCoordinates {
+    final lat = _currentLocation.latitude;
+    final lng = _currentLocation.longitude;
+    final latDir = lat >= 0 ? 'N' : 'S';
+    final lngDir = lng >= 0 ? 'E' : 'W';
+    return '${lat.abs().toStringAsFixed(4)}° $latDir, ${lng.abs().toStringAsFixed(4)}° $lngDir';
+  }
+
+  /// Returns resolved place name (city/district) or fallback coordinates
+  String get displayLocationName {
+    final label = _currentLocation.label;
+    if (label != null && label.isNotEmpty && label != 'Current Physical Location') {
+      return label;
+    }
+    return formattedCoordinates;
+  }
+
+  /// Sets real GPS fix coordinates directly (e.g. after sensor acquisition or testing)
+  void setLocationFix(double lat, double lng, double accuracy, {String? label}) {
+    _currentLocation = GeoPoint(lat, lng, label ?? 'Current Physical Location');
+    _gpsAccuracyMeters = accuracy;
+    _hasRealGpsFix = true;
+    _isLocating = false;
+    _locationStatus = 'GPS Active (±${accuracy.toStringAsFixed(1)}m)';
+    notifyListeners();
+  }
+
   /// Acquires real hardware GPS coordinates from device / browser (No simulations allowed)
   void _initPhysicalLocation() {
     refreshPhysicalLocation();
@@ -96,6 +126,9 @@ class LocationService extends ChangeNotifier {
         _isLocating = false;
         _locationStatus = 'GPS Active (±${accuracy.toStringAsFixed(1)}m)';
         notifyListeners();
+
+        // Resolve reverse geocoded human readable locality
+        _resolveAddress(lat, lng);
       },
       onError: (error) {
         _isLocating = false;
@@ -103,6 +136,50 @@ class LocationService extends ChangeNotifier {
         notifyListeners();
       },
     );
+  }
+
+  Future<void> _resolveAddress(double lat, double lng) async {
+    try {
+      final uri = Uri.parse(
+        'https://nominatim.openstreetmap.org/reverse?format=json&lat=$lat&lon=$lng&zoom=14&addressdetails=1',
+      );
+      final res = await http.get(
+        uri,
+        headers: {'User-Agent': 'GroundTruthApp/1.0'},
+      ).timeout(const Duration(seconds: 4));
+
+      if (res.statusCode == 200) {
+        final data = json.decode(res.body);
+        final address = data['address'] as Map<String, dynamic>?;
+        if (address != null) {
+          final locality = address['suburb'] ??
+              address['neighbourhood'] ??
+              address['city_district'] ??
+              address['city'] ??
+              address['town'] ??
+              address['village'] ??
+              '';
+          final city = address['city'] ??
+              address['town'] ??
+              address['county'] ??
+              address['state'] ??
+              '';
+          final country = address['country'] ?? '';
+          final parts = <String>[];
+          if (locality.toString().isNotEmpty) parts.add(locality.toString());
+          if (city.toString().isNotEmpty && city.toString() != locality.toString()) {
+            parts.add(city.toString());
+          }
+          if (country.toString().isNotEmpty) parts.add(country.toString());
+          if (parts.isNotEmpty) {
+            _currentLocation = GeoPoint(lat, lng, parts.join(', '));
+            notifyListeners();
+          }
+        }
+      }
+    } catch (_) {
+      // Keep existing label / coordinates
+    }
   }
 
   /// Evaluates multi-layer verification for a given event

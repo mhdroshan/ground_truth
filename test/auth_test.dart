@@ -8,6 +8,7 @@ import 'package:groundtruth/models/user_model.dart';
 import 'package:groundtruth/providers/app_state.dart';
 import 'package:groundtruth/providers/location_service.dart';
 import 'package:groundtruth/screens/login_screen.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 
 final _transparent1x1Png = base64Decode(
   'iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mNk+M9QDwADhgGAWjR9awAAAABJRU5ErkJggg==',
@@ -78,6 +79,7 @@ class _MockHttpClientResponse extends Fake implements HttpClientResponse {
 void main() {
   setUp(() {
     HttpOverrides.global = _TestHttpOverrides();
+    SharedPreferences.setMockInitialValues({});
   });
 
   tearDown(() {
@@ -127,9 +129,9 @@ void main() {
       expect(appState.currentUser.tier, 'Guest');
     });
 
-    test('Logout clears session and switches to guest profile', () {
+    test('Logout clears session and switches to guest profile', () async {
       final appState = AppState();
-      appState.logout();
+      await appState.logout();
       expect(appState.isLoggedIn, isFalse);
       expect(appState.currentUser.handle, '@guest');
       expect(appState.currentUser.tier, 'Guest');
@@ -148,6 +150,53 @@ void main() {
       expect(appState.isLoggedIn, isTrue);
       expect(appState.currentUser.name, 'Kabir Verma');
       expect(appState.currentUser.handle, '@kabir_field');
+    });
+
+    test('Session persists when app is closed and reopened', () async {
+      // 1. Initial session: user registers/logs in
+      final firstAppInstance = AppState();
+      final success = await firstAppInstance.register(
+        name: 'Aarav Patel',
+        email: 'aarav@groundtruth.org',
+        handle: '@aarav_ground',
+        password: 'Password123!',
+      );
+      expect(success, isTrue);
+      expect(firstAppInstance.isLoggedIn, isTrue);
+      expect(firstAppInstance.currentUser.name, 'Aarav Patel');
+
+      // 2. Simulate closing app and launching a fresh AppState instance
+      final restartedAppInstance = AppState();
+      await restartedAppInstance.loadPersistedSession();
+
+      // 3. User must remain logged in with their profile preserved
+      expect(restartedAppInstance.isLoggedIn, isTrue);
+      expect(restartedAppInstance.currentUser.name, 'Aarav Patel');
+      expect(restartedAppInstance.currentUser.handle, '@aarav_ground');
+      expect(restartedAppInstance.currentUser.email, 'aarav@groundtruth.org');
+      expect(restartedAppInstance.authToken, isNotNull);
+    });
+
+    test('Logging out clears persistent session on next app launch', () async {
+      final appState = AppState();
+      await appState.register(
+        name: 'Sneha Rao',
+        email: 'sneha@groundtruth.org',
+        handle: '@sneha_rao',
+        password: 'Password123!',
+      );
+      expect(appState.isLoggedIn, isTrue);
+
+      // Log out
+      await appState.logout();
+      expect(appState.isLoggedIn, isFalse);
+
+      // Simulate closing and restarting app
+      final restartedApp = AppState();
+      await restartedApp.loadPersistedSession();
+
+      expect(restartedApp.isLoggedIn, isFalse);
+      expect(restartedApp.currentUser.handle, '@guest');
     });
   });
 

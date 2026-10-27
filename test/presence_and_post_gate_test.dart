@@ -10,6 +10,7 @@ import 'package:groundtruth/providers/location_service.dart';
 import 'package:groundtruth/screens/create_post_screen.dart';
 import 'package:groundtruth/screens/write_screen.dart';
 import 'package:groundtruth/utils/geofence_math.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 
 
 
@@ -108,6 +109,7 @@ class _TestHttpOverrides extends HttpOverrides {
 void main() {
   setUpAll(() {
     HttpOverrides.global = _TestHttpOverrides();
+    SharedPreferences.setMockInitialValues({});
   });
 
   group('Presence Simulator Removal & Geofence Post Gate Tests', () {

@@ -7,6 +7,7 @@ import 'package:provider/provider.dart';
 import 'package:groundtruth/providers/app_state.dart';
 import 'package:groundtruth/providers/location_service.dart';
 import 'package:groundtruth/screens/home_feed_screen.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 
 final _transparent1x1Png = base64Decode(
   'iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mNk+M9QDwADhgGAWjR9awAAAABJRU5ErkJggg==',
@@ -77,6 +78,7 @@ class _TestHttpOverrides extends HttpOverrides {
 void main() {
   setUpAll(() {
     HttpOverrides.global = _TestHttpOverrides();
+    SharedPreferences.setMockInitialValues({});
   });
 
   testWidgets('Test HomeFeedScreen rendering and interactions', (WidgetTester tester) async {

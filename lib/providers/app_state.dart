@@ -1,6 +1,8 @@
+import 'dart:convert';
 import 'dart:io' show Platform;
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 import '../models/event_model.dart';
 import '../models/post_model.dart';
 import '../models/comment_model.dart';
@@ -52,6 +54,11 @@ class AppAlert {
 }
 
 class AppState extends ChangeNotifier {
+  // SharedPreferences Keys for Session Persistence
+  static const String _prefKeyIsLoggedIn = 'groundtruth_is_logged_in';
+  static const String _prefKeyAuthToken = 'groundtruth_auth_token';
+  static const String _prefKeyUserData = 'groundtruth_user_data';
+
   // Authentication & Session State
   bool _isLoggedIn = false;
   bool get isLoggedIn => _isLoggedIn;
@@ -102,6 +109,109 @@ class AppState extends ChangeNotifier {
 
   UserModel get currentUser => _currentUser;
 
+  Future<void> _savePersistedSession() async {
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      await prefs.setBool(_prefKeyIsLoggedIn, _isLoggedIn);
+      if (_authToken != null) {
+        await prefs.setString(_prefKeyAuthToken, _authToken!);
+      } else {
+        await prefs.remove(_prefKeyAuthToken);
+      }
+      final userJson = json.encode(_currentUser.toJson());
+      await prefs.setString(_prefKeyUserData, userJson);
+    } catch (e) {
+      if (kDebugMode) print('Failed to save auth session: $e');
+    }
+  }
+
+  Future<void> _clearPersistedSession() async {
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      await prefs.remove(_prefKeyIsLoggedIn);
+      await prefs.remove(_prefKeyAuthToken);
+      await prefs.remove(_prefKeyUserData);
+    } catch (e) {
+      if (kDebugMode) print('Failed to clear auth session: $e');
+    }
+  }
+
+  /// Restores saved authentication session so the user stays logged in across app restarts
+  Future<void> loadPersistedSession() async {
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      final isLoggedIn = prefs.getBool(_prefKeyIsLoggedIn) ?? false;
+      final token = prefs.getString(_prefKeyAuthToken);
+      final userDataStr = prefs.getString(_prefKeyUserData);
+
+      if (isLoggedIn && userDataStr != null) {
+        final Map<String, dynamic> userMap = json.decode(userDataStr);
+        final loadedUser = UserModel.fromJson(userMap);
+        _currentUser = loadedUser.copyWith(achievements: _currentUser.achievements);
+        _authToken = token;
+        _isLoggedIn = true;
+        _syncAchievements();
+        notifyListeners();
+
+        // Background-refresh user profile from backend if online token exists
+        if (token != null && token.isNotEmpty && !token.startsWith('local_token_')) {
+          _refreshSessionFromBackend(token);
+        }
+      }
+    } catch (e) {
+      if (kDebugMode) print('Failed to restore auth session: $e');
+    }
+  }
+
+  Future<void> _refreshSessionFromBackend(String token) async {
+    try {
+      final remoteUser = await ApiService.fetchCurrentUser(token);
+      if (remoteUser != null && !_disposed) {
+        _currentUser = remoteUser.copyWith(achievements: _currentUser.achievements);
+        _syncAchievements();
+        await _savePersistedSession();
+        notifyListeners();
+      }
+    } catch (e) {
+      if (kDebugMode) print('Session refresh from backend skipped: $e');
+    }
+  }
+
+  void _syncAchievements() {
+    final updatedAchievements = <AchievementModel>[];
+    for (final ach in _currentUser.achievements) {
+      int current = ach.currentProgress;
+      switch (ach.id) {
+        case 'ach_ground_reporter_1':
+        case 'ach_ground_reporter_2':
+          current = _currentUser.postsCreated;
+          break;
+        case 'ach_truth_guardian_1':
+        case 'ach_truth_guardian_2':
+        case 'ach_consensus_master':
+          current = _currentUser.verificationsDone;
+          break;
+        case 'ach_tag_pioneer_1':
+        case 'ach_tag_pioneer_2':
+          current = _currentUser.tagsCreated;
+          break;
+        case 'ach_community_voice_1':
+        case 'ach_community_voice_2':
+          current = _currentUser.commentsAdded;
+          break;
+        case 'ach_mastery_sentinel':
+          current = _currentUser.xp;
+          break;
+      }
+      final bool nowUnlocked = current >= ach.maxProgress;
+      updatedAchievements.add(ach.copyWith(
+        currentProgress: current,
+        isUnlocked: nowUnlocked || ach.isUnlocked,
+      ));
+    }
+    _currentUser = _currentUser.copyWith(achievements: updatedAchievements);
+  }
+
   Future<bool> login(String identifier, String password) async {
     _isAuthenticating = true;
     _authError = null;
@@ -115,6 +225,8 @@ class AppState extends ChangeNotifier {
         _currentUser = res.user!.copyWith(achievements: existingAchievements);
         _authToken = res.token;
         _isLoggedIn = true;
+        _syncAchievements();
+        await _savePersistedSession();
         _authSuccessMessage = res.message ?? 'Welcome back, ${_currentUser.name}';
         _isAuthenticating = false;
         notifyListeners();
@@ -161,6 +273,8 @@ class AppState extends ChangeNotifier {
         _currentUser = res.user!.copyWith(achievements: existingAchievements);
         _authToken = res.token;
         _isLoggedIn = true;
+        _syncAchievements();
+        await _savePersistedSession();
         _authSuccessMessage = 'Account created successfully!';
         _isAuthenticating = false;
         notifyListeners();
@@ -183,7 +297,10 @@ class AppState extends ChangeNotifier {
           deviceModel: deviceModel ?? 'Standard Device',
           achievements: existingAchievements,
         );
+        _authToken = 'local_token_${DateTime.now().millisecondsSinceEpoch}';
         _isLoggedIn = true;
+        _syncAchievements();
+        await _savePersistedSession();
         _authSuccessMessage = 'Account registered successfully!';
         _isAuthenticating = false;
         notifyListeners();
@@ -197,11 +314,12 @@ class AppState extends ChangeNotifier {
     }
   }
 
-  void logout() {
+  Future<void> logout() async {
     _isLoggedIn = false;
     _authToken = null;
     _currentUser = guestUser;
     notifyListeners();
+    await _clearPersistedSession();
   }
 
   // Active filter states
@@ -624,9 +742,12 @@ class AppState extends ChangeNotifier {
     }
   }
 
-  AppState({bool autoLoadRemote = true}) {
+  AppState({bool autoLoadRemote = true, bool autoRestoreSession = true}) {
     _initializeData();
     _initAchievements();
+    if (autoRestoreSession) {
+      loadPersistedSession();
+    }
     if (autoLoadRemote) {
       loadRemoteDatabaseData();
     }
@@ -1463,6 +1584,10 @@ class AppState extends ChangeNotifier {
       trustScore: newTrust,
       achievements: updatedAchievements,
     );
+
+    if (_isLoggedIn) {
+      _savePersistedSession();
+    }
   }
 
   void _initializeData() {

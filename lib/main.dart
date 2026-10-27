@@ -6,7 +6,7 @@ import 'providers/location_service.dart';
 import 'screens/main_navigation_shell.dart';
 import 'theme/app_theme.dart';
 
-void main() {
+void main() async {
   WidgetsFlutterBinding.ensureInitialized();
   SystemChrome.setSystemUIOverlayStyle(
     const SystemUiOverlayStyle(
@@ -17,11 +17,15 @@ void main() {
     ),
   );
 
+  final appState = AppState();
+  // Restore persisted session before UI mount so eyewitness stays logged in seamlessly
+  await appState.loadPersistedSession();
+
   runApp(
     MultiProvider(
       providers: [
         ChangeNotifierProvider(create: (_) => LocationService()),
-        ChangeNotifierProvider(create: (_) => AppState()),
+        ChangeNotifierProvider.value(value: appState),
       ],
       child: const GroundTruthApp(),
     ),

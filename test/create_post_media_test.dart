@@ -7,6 +7,7 @@ import 'package:provider/provider.dart';
 import 'package:groundtruth/providers/app_state.dart';
 import 'package:groundtruth/providers/location_service.dart';
 import 'package:groundtruth/screens/create_post_screen.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 
 
 
@@ -105,6 +106,7 @@ class _TestHttpOverrides extends HttpOverrides {
 void main() {
   setUpAll(() {
     HttpOverrides.global = _TestHttpOverrides();
+    SharedPreferences.setMockInitialValues({});
   });
 
   group('CreatePostScreen Media Buttons Test', () {
