@@ -33,11 +33,13 @@ class _WriteScreenState extends State<WriteScreen> {
     final locationService = context.watch<LocationService>();
     final userLoc = locationService.currentLocation;
 
-    // Detect events user is physically inside
-    final eventsUserIsInside = appState.getEventsUserIsInside(userLoc);
+    // Detect real events user is physically inside (excluding dummy tags)
+    final eventsUserIsInside = appState.getEventsUserIsInside(userLoc)
+        .where((e) => !AppState.isDummyTag(e.id))
+        .toList();
 
-    // Filter events
-    var tags = appState.events;
+    // Filter real events only (all dummy mock seed tags are removed)
+    var tags = appState.realEvents;
     if (_searchQuery.trim().isNotEmpty) {
       final q = _searchQuery.toLowerCase();
       tags = tags.where((e) =>
@@ -115,173 +117,213 @@ class _WriteScreenState extends State<WriteScreen> {
           const SizedBox(width: 6),
         ],
       ),
-      body: SingleChildScrollView(
-        padding: const EdgeInsets.all(16),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            // PROXIMITY HERO BANNER (When inside an event tag)
-            if (eventsUserIsInside.isNotEmpty)
-              _buildInsideTagHero(context, eventsUserIsInside.first)
-            else
-              _buildLocationInfoBanner(context, locationService),
+      body: RefreshIndicator(
+        color: AppColors.primaryNavy,
+        onRefresh: () => appState.loadRemoteDatabaseData(),
+        child: SingleChildScrollView(
+          physics: const AlwaysScrollableScrollPhysics(),
+          padding: const EdgeInsets.all(16),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              // PROXIMITY HERO BANNER (When inside an event tag)
+              if (eventsUserIsInside.isNotEmpty)
+                _buildInsideTagHero(context, eventsUserIsInside.first)
+              else
+                _buildLocationInfoBanner(context, locationService),
 
-            const SizedBox(height: 16),
+              const SizedBox(height: 16),
 
-            // Tag Search & Quick Filter
-            Container(
-              padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 2),
-              decoration: BoxDecoration(
-                color: Colors.white,
-                borderRadius: BorderRadius.circular(14),
-                border: Border.all(color: AppColors.border),
-                boxShadow: [
-                  BoxShadow(
-                    color: Colors.black.withValues(alpha: 0.02),
-                    blurRadius: 6,
-                  ),
-                ],
-              ),
-              child: Row(
-                children: [
-                  const Icon(Icons.search, color: AppColors.primaryNavy, size: 20),
-                  const SizedBox(width: 10),
-                  Expanded(
-                    child: TextField(
-                      controller: _searchController,
-                      onChanged: (val) => setState(() => _searchQuery = val),
-                      style: const TextStyle(color: AppColors.textPrimary, fontSize: 13.5),
-                      decoration: const InputDecoration(
-                        hintText: 'Search tags (#FarmersMarch, #PaddingtonFire)...',
-                        hintStyle: TextStyle(color: AppColors.textMuted, fontSize: 13),
-                        border: InputBorder.none,
-                        isDense: true,
-                        contentPadding: EdgeInsets.symmetric(vertical: 12),
-                      ),
-                    ),
-                  ),
-                  if (_searchQuery.isNotEmpty)
-                    IconButton(
-                      icon: const Icon(Icons.close, size: 18, color: AppColors.textMuted),
-                      onPressed: () {
-                        _searchController.clear();
-                        setState(() => _searchQuery = '');
-                      },
-                    ),
-                ],
-              ),
-            ),
-            const SizedBox(height: 12),
-
-            // Category Chips Carousel
-            SingleChildScrollView(
-              scrollDirection: Axis.horizontal,
-              child: Row(
-                children: [
-                  _buildCategoryChip('All Categories', null),
-                  const SizedBox(width: 6),
-                  _buildCategoryChip('Protests', EventCategory.protest),
-                  const SizedBox(width: 6),
-                  _buildCategoryChip('Disasters', EventCategory.naturalDisaster),
-                  const SizedBox(width: 6),
-                  _buildCategoryChip('Fires', EventCategory.fire),
-                  const SizedBox(width: 6),
-                  _buildCategoryChip('Weather', EventCategory.weather),
-                  const SizedBox(width: 6),
-                  _buildCategoryChip('Elections', EventCategory.election),
-                ],
-              ),
-            ),
-            const SizedBox(height: 16),
-
-            // Section Header
-            Row(
-              mainAxisAlignment: MainAxisAlignment.spaceBetween,
-              children: [
-                const Text(
-                  'Available Event Tags for Reporting',
-                  style: TextStyle(
-                    color: AppColors.textPrimary,
-                    fontSize: 16,
-                    fontWeight: FontWeight.w800,
-                  ),
-                ),
-                Text(
-                  '${tags.length} Active Tags',
-                  style: const TextStyle(
-                    color: AppColors.textSecondary,
-                    fontSize: 12,
-                    fontWeight: FontWeight.w600,
-                  ),
-                ),
-              ],
-            ),
-            const SizedBox(height: 10),
-
-            // Tag List
-            if (tags.isEmpty)
+              // Tag Search & Quick Filter
               Container(
-                width: double.infinity,
-                padding: const EdgeInsets.all(32),
+                padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 2),
                 decoration: BoxDecoration(
                   color: Colors.white,
-                  borderRadius: BorderRadius.circular(16),
+                  borderRadius: BorderRadius.circular(14),
                   border: Border.all(color: AppColors.border),
-                ),
-                child: Column(
-                  children: [
-                    const Icon(Icons.tag_faces_rounded, size: 44, color: AppColors.textMuted),
-                    const SizedBox(height: 12),
-                    const Text(
-                      'No matching event tags found',
-                      style: TextStyle(
-                        color: AppColors.textPrimary,
-                        fontSize: 15,
-                        fontWeight: FontWeight.w700,
-                      ),
-                    ),
-                    const SizedBox(height: 6),
-                    const Text(
-                      'You can create a new verified tag with a custom geofence radius.',
-                      style: TextStyle(color: AppColors.textSecondary, fontSize: 12),
-                      textAlign: TextAlign.center,
-                    ),
-                    const SizedBox(height: 14),
-                    ElevatedButton.icon(
-                      style: ElevatedButton.styleFrom(
-                        backgroundColor: AppColors.primaryNavy,
-                        foregroundColor: Colors.white,
-                        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
-                      ),
-                      onPressed: () {
-                        Navigator.push(
-                          context,
-                          MaterialPageRoute(builder: (context) => const CreateTagScreen()),
-                        );
-                      },
-                      icon: const Icon(Icons.add, size: 16),
-                      label: const Text('Create New Event Tag'),
+                  boxShadow: [
+                    BoxShadow(
+                      color: Colors.black.withValues(alpha: 0.02),
+                      blurRadius: 6,
                     ),
                   ],
                 ),
-              )
-            else
-              ListView.separated(
-                shrinkWrap: true,
-                physics: const NeverScrollableScrollPhysics(),
-                itemCount: tags.length,
-                separatorBuilder: (context, index) => const SizedBox(height: 12),
-                itemBuilder: (context, index) {
-                  final ev = tags[index];
-                  final isInside = ev.isUserInside(userLoc);
-                  final distance = ev.distanceFromUser(userLoc);
-
-                  return _buildTagCard(context, ev, isInside, distance, locationService);
-                },
+                child: Row(
+                  children: [
+                    const Icon(Icons.search, color: AppColors.primaryNavy, size: 20),
+                    const SizedBox(width: 10),
+                    Expanded(
+                      child: TextField(
+                        controller: _searchController,
+                        onChanged: (val) => setState(() => _searchQuery = val),
+                        style: const TextStyle(color: AppColors.textPrimary, fontSize: 13.5),
+                        decoration: const InputDecoration(
+                          hintText: 'Search active tags by name, city, or category...',
+                          hintStyle: TextStyle(color: AppColors.textMuted, fontSize: 13),
+                          border: InputBorder.none,
+                          isDense: true,
+                          contentPadding: EdgeInsets.symmetric(vertical: 12),
+                        ),
+                      ),
+                    ),
+                    if (_searchQuery.isNotEmpty)
+                      IconButton(
+                        icon: const Icon(Icons.close, size: 18, color: AppColors.textMuted),
+                        onPressed: () {
+                          _searchController.clear();
+                          setState(() => _searchQuery = '');
+                        },
+                      ),
+                  ],
+                ),
               ),
+              const SizedBox(height: 12),
 
-            const SizedBox(height: 24),
-          ],
+              // Category Chips Carousel
+              SingleChildScrollView(
+                scrollDirection: Axis.horizontal,
+                child: Row(
+                  children: [
+                    _buildCategoryChip('All Categories', null),
+                    const SizedBox(width: 6),
+                    _buildCategoryChip('Protests', EventCategory.protest),
+                    const SizedBox(width: 6),
+                    _buildCategoryChip('Disasters', EventCategory.naturalDisaster),
+                    const SizedBox(width: 6),
+                    _buildCategoryChip('Fires', EventCategory.fire),
+                    const SizedBox(width: 6),
+                    _buildCategoryChip('Weather', EventCategory.weather),
+                    const SizedBox(width: 6),
+                    _buildCategoryChip('Elections', EventCategory.election),
+                  ],
+                ),
+              ),
+              const SizedBox(height: 16),
+
+              // Section Header
+              Row(
+                mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                children: [
+                  const Text(
+                    'Available Event Tags for Reporting',
+                    style: TextStyle(
+                      color: AppColors.textPrimary,
+                      fontSize: 16,
+                      fontWeight: FontWeight.w800,
+                    ),
+                  ),
+                  Text(
+                    '${tags.length} Active Tags',
+                    style: const TextStyle(
+                      color: AppColors.textSecondary,
+                      fontSize: 12,
+                      fontWeight: FontWeight.w600,
+                    ),
+                  ),
+                ],
+              ),
+              const SizedBox(height: 10),
+
+              // Tag List
+              if (appState.isLoadingFromDb && tags.isEmpty)
+                Container(
+                  width: double.infinity,
+                  padding: const EdgeInsets.symmetric(vertical: 36, horizontal: 24),
+                  decoration: BoxDecoration(
+                    color: Colors.white,
+                    borderRadius: BorderRadius.circular(16),
+                    border: Border.all(color: AppColors.border),
+                  ),
+                  child: const Column(
+                    children: [
+                      SizedBox(
+                        width: 28,
+                        height: 28,
+                        child: CircularProgressIndicator(
+                          strokeWidth: 2.5,
+                          color: AppColors.primaryNavy,
+                        ),
+                      ),
+                      SizedBox(height: 14),
+                      Text(
+                        'Loading verified tags from database...',
+                        style: TextStyle(
+                          color: AppColors.textPrimary,
+                          fontSize: 14,
+                          fontWeight: FontWeight.w700,
+                        ),
+                      ),
+                    ],
+                  ),
+                )
+              else if (tags.isEmpty)
+                Container(
+                  width: double.infinity,
+                  padding: const EdgeInsets.all(32),
+                  decoration: BoxDecoration(
+                    color: Colors.white,
+                    borderRadius: BorderRadius.circular(16),
+                    border: Border.all(color: AppColors.border),
+                  ),
+                  child: Column(
+                    children: [
+                      const Icon(Icons.tag_faces_rounded, size: 44, color: AppColors.textMuted),
+                      const SizedBox(height: 12),
+                      Text(
+                        _searchQuery.isNotEmpty || _selectedCategory != null
+                            ? 'No matching event tags found'
+                            : 'No active event tags yet',
+                        style: const TextStyle(
+                          color: AppColors.textPrimary,
+                          fontSize: 15,
+                          fontWeight: FontWeight.w700,
+                        ),
+                      ),
+                      const SizedBox(height: 6),
+                      Text(
+                        _searchQuery.isNotEmpty || _selectedCategory != null
+                            ? 'Try clearing filters or search terms.'
+                            : 'Be the first to create a verified tag with a custom geofence radius.',
+                        style: const TextStyle(color: AppColors.textSecondary, fontSize: 12),
+                        textAlign: TextAlign.center,
+                      ),
+                      const SizedBox(height: 14),
+                      ElevatedButton.icon(
+                        style: ElevatedButton.styleFrom(
+                          backgroundColor: AppColors.primaryNavy,
+                          foregroundColor: Colors.white,
+                          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+                        ),
+                        onPressed: () {
+                          Navigator.push(
+                            context,
+                            MaterialPageRoute(builder: (context) => const CreateTagScreen()),
+                          );
+                        },
+                        icon: const Icon(Icons.add, size: 16),
+                        label: const Text('Create New Event Tag'),
+                      ),
+                    ],
+                  ),
+                )
+              else
+                ListView.separated(
+                  shrinkWrap: true,
+                  physics: const NeverScrollableScrollPhysics(),
+                  itemCount: tags.length,
+                  separatorBuilder: (context, index) => const SizedBox(height: 12),
+                  itemBuilder: (context, index) {
+                    final ev = tags[index];
+                    final isInside = ev.isUserInside(userLoc);
+                    final distance = ev.distanceFromUser(userLoc);
+
+                    return _buildTagCard(context, ev, isInside, distance, locationService);
+                  },
+                ),
+
+              const SizedBox(height: 24),
+            ],
+          ),
         ),
       ),
     );

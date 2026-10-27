@@ -15,7 +15,7 @@ class ApiService {
     try {
       final response = await http
           .get(Uri.parse('$baseUrl/health'))
-          .timeout(const Duration(seconds: 6));
+          .timeout(const Duration(seconds: 20));
       if (response.statusCode == 200) {
         final data = json.decode(response.body);
         return data['database'] == 'CONNECTED';
@@ -31,7 +31,7 @@ class ApiService {
     try {
       final response = await http
           .get(Uri.parse('$baseUrl/posts'))
-          .timeout(const Duration(seconds: 8));
+          .timeout(const Duration(seconds: 30));
 
       if (response.statusCode == 200) {
         final body = json.decode(response.body);
@@ -51,7 +51,7 @@ class ApiService {
     try {
       final response = await http
           .get(Uri.parse('$baseUrl/posts/$postId/comments'))
-          .timeout(const Duration(seconds: 8));
+          .timeout(const Duration(seconds: 20));
 
       if (response.statusCode == 200) {
         final body = json.decode(response.body);
@@ -94,7 +94,7 @@ class ApiService {
               'deviceRooted': false,
             }),
           )
-          .timeout(const Duration(seconds: 8));
+          .timeout(const Duration(seconds: 20));
 
       if (response.statusCode == 201) {
         final body = json.decode(response.body);
@@ -113,7 +113,7 @@ class ApiService {
     try {
       final response = await http
           .get(Uri.parse('$baseUrl/tags'))
-          .timeout(const Duration(seconds: 8));
+          .timeout(const Duration(seconds: 60));
 
       if (response.statusCode == 200) {
         final body = json.decode(response.body);
@@ -165,7 +165,7 @@ class ApiService {
               ...?bannerImageUrl != null ? {'bannerImageUrl': bannerImageUrl} : null,
             }),
           )
-          .timeout(const Duration(seconds: 8));
+          .timeout(const Duration(seconds: 20));
 
       if (response.statusCode == 200 || response.statusCode == 201) {
         final data = json.decode(response.body);
@@ -221,7 +221,7 @@ class ApiService {
             'isVerifiedJournalist': post.authorIsVerifiedJournalist,
           },
         }),
-      ).timeout(const Duration(seconds: 10));
+      ).timeout(const Duration(seconds: 30));
 
       if (response.statusCode == 201 || response.statusCode == 200) {
         final body = json.decode(response.body);
@@ -261,7 +261,7 @@ class ApiService {
           'mockLocationDetected': false,
           'deviceRooted': false,
         }),
-      ).timeout(const Duration(seconds: 8));
+      ).timeout(const Duration(seconds: 20));
 
       if (response.statusCode == 200 || response.statusCode == 201) {
         final body = json.decode(response.body);
@@ -298,7 +298,7 @@ class ApiService {
               'password': password,
             }),
           )
-          .timeout(const Duration(seconds: 8));
+          .timeout(const Duration(seconds: 25));
 
       final data = json.decode(response.body);
 
@@ -348,7 +348,7 @@ class ApiService {
               'tier': tier,
             }),
           )
-          .timeout(const Duration(seconds: 8));
+          .timeout(const Duration(seconds: 25));
 
       final data = json.decode(response.body);
 
@@ -387,7 +387,7 @@ class ApiService {
               'Authorization': 'Bearer $token',
             },
           )
-          .timeout(const Duration(seconds: 8));
+          .timeout(const Duration(seconds: 15));
 
       if (response.statusCode == 200) {
         final data = json.decode(response.body);

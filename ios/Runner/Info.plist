@@ -66,5 +66,14 @@
 		<string>UIInterfaceOrientationLandscapeLeft</string>
 		<string>UIInterfaceOrientationLandscapeRight</string>
 	</array>
+	<key>NSLocationWhenInUseUsageDescription</key>
+	<string>GroundTruth requires physical GPS location to verify on-site eyewitness reports and geofences.</string>
+	<key>NSLocationAlwaysAndWhenInUseUsageDescription</key>
+	<string>GroundTruth requires physical GPS location to verify on-site eyewitness reports and geofences.</string>
+	<key>NSAppTransportSecurity</key>
+	<dict>
+		<key>NSAllowsArbitraryLoads</key>
+		<true/>
+	</dict>
 </dict>
 </plist>

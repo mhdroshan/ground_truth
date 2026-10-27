@@ -114,13 +114,26 @@ class _HomeFeedScreenState extends State<HomeFeedScreen> {
           ),
         ],
       ),
-      body: SingleChildScrollView(
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            // Achievement celebration banner (if recently unlocked)
-            if (appState.recentlyUnlockedAchievement != null)
-              _buildAchievementToast(context, appState),
+      body: RefreshIndicator(
+        onRefresh: () async {
+          await appState.loadRemoteDatabaseData();
+        },
+        child: SingleChildScrollView(
+          physics: const AlwaysScrollableScrollPhysics(),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              // Database syncing progress bar
+              if (appState.isLoadingFromDb)
+                const LinearProgressIndicator(
+                  minHeight: 2.5,
+                  backgroundColor: Colors.transparent,
+                  color: AppColors.primaryNavy,
+                ),
+
+              // Achievement celebration banner (if recently unlocked)
+              if (appState.recentlyUnlockedAchievement != null)
+                _buildAchievementToast(context, appState),
 
             // HERO REQUIREMENT: Current location event prompt
             _buildCurrentLocationHero(context, inLocationEvent, userLoc),
@@ -290,6 +303,7 @@ class _HomeFeedScreenState extends State<HomeFeedScreen> {
           ],
         ),
       ),
+    ),
       floatingActionButton: eventsUserIsInside.isNotEmpty
           ? FloatingActionButton.extended(
               backgroundColor: const Color(0xFF006C35),

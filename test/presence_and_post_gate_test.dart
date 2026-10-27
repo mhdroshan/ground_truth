@@ -4,14 +4,14 @@ import 'dart:io';
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:provider/provider.dart';
+import 'package:groundtruth/models/event_model.dart';
 import 'package:groundtruth/providers/app_state.dart';
 import 'package:groundtruth/providers/location_service.dart';
 import 'package:groundtruth/screens/create_post_screen.dart';
 import 'package:groundtruth/screens/write_screen.dart';
+import 'package:groundtruth/utils/geofence_math.dart';
 
-final _transparent1x1Png = base64Decode(
-  'iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mNk+M9QDwADhgGAWjR9awAAAABJRU5ErkJggg==',
-);
+
 
 class _MockHttpClient extends Fake implements HttpClient {
   @override
@@ -28,11 +28,29 @@ class _MockHttpClient extends Fake implements HttpClient {
   Future<HttpClientRequest> getUrl(Uri url) async => _MockHttpClientRequest();
   @override
   Future<HttpClientRequest> openUrl(String method, Uri url) async => _MockHttpClientRequest();
+  @override
+  void close({bool force = false}) {}
 }
 
 class _MockHttpClientRequest extends Fake implements HttpClientRequest {
   @override
   final HttpHeaders headers = _MockHttpHeaders();
+  @override
+  bool followRedirects = true;
+  @override
+  int maxRedirects = 5;
+  @override
+  int contentLength = 0;
+  @override
+  bool persistentConnection = false;
+  @override
+  bool bufferOutput = true;
+  @override
+  void add(List<int> data) {}
+  @override
+  void write(Object? obj) {}
+  @override
+  Future addStream(Stream<List<int>> stream) async {}
   @override
   Future<HttpClientResponse> close() async => _MockHttpClientResponse();
 }
@@ -42,13 +60,25 @@ class _MockHttpHeaders extends Fake implements HttpHeaders {
   void add(String name, Object value, {bool preserveHeaderCase = false}) {}
   @override
   void set(String name, Object value, {bool preserveHeaderCase = false}) {}
+  @override
+  void forEach(void Function(String name, List<String> values) action) {}
 }
 
 class _MockHttpClientResponse extends Fake implements HttpClientResponse {
+  static final _body = utf8.encode('{"data": []}');
+
   @override
   int get statusCode => 200;
   @override
-  int get contentLength => _transparent1x1Png.length;
+  bool get isRedirect => false;
+  @override
+  String get reasonPhrase => 'OK';
+  @override
+  List<RedirectInfo> get redirects => const [];
+  @override
+  bool get persistentConnection => false;
+  @override
+  int get contentLength => _body.length;
   @override
   HttpClientResponseCompressionState get compressionState =>
       HttpClientResponseCompressionState.notCompressed;
@@ -61,7 +91,7 @@ class _MockHttpClientResponse extends Fake implements HttpClientResponse {
     void Function()? onDone,
     bool? cancelOnError,
   }) {
-    return Stream<List<int>>.value(_transparent1x1Png).listen(
+    return Stream<List<int>>.value(_body).listen(
       onData,
       onError: onError,
       onDone: onDone,
@@ -87,7 +117,7 @@ void main() {
       tester.view.devicePixelRatio = 1.0;
       addTearDown(() => tester.view.resetPhysicalSize());
 
-      final appState = AppState();
+      final appState = AppState(autoLoadRemote: false);
       final locationService = LocationService();
       // Default location is at Delhi Farmers Protest (Jantar Mantar)
       final delhiEvent = appState.events.firstWhere((e) => e.id == 'delhi_protest_2026');
@@ -119,7 +149,7 @@ void main() {
       tester.view.devicePixelRatio = 1.0;
       addTearDown(() => tester.view.resetPhysicalSize());
 
-      final appState = AppState();
+      final appState = AppState(autoLoadRemote: false);
       final locationService = LocationService();
       // London Fire event is thousands of miles away from Delhi
       final londonEvent = appState.events.firstWhere((e) => e.id == 'london_fire_2026');
@@ -153,8 +183,28 @@ void main() {
       tester.view.devicePixelRatio = 1.0;
       addTearDown(() => tester.view.resetPhysicalSize());
 
-      final appState = AppState();
+      final appState = AppState(autoLoadRemote: false);
       final locationService = LocationService();
+      appState.events.add(
+        EventModel(
+          id: 'test_outside_event_lock',
+          title: 'Remote Lock Test Tag',
+          tagName: '#RemoteLockTag',
+          description: 'A test tag far away from user location',
+          category: EventCategory.protest,
+          riskLevel: RiskLevel.high,
+          status: EventStatus.live,
+          city: 'Remote City',
+          country: 'Test Country',
+          center: const GeoPoint(10.0, 10.0, 'Remote Center'),
+          radiusMeters: 500,
+          bannerImageUrl: 'https://example.com/test.jpg',
+          startTime: DateTime.now(),
+          activeContributors: 10,
+          totalPosts: 5,
+          totalVideos: 1,
+        ),
+      );
 
       await tester.pumpWidget(
         MultiProvider(

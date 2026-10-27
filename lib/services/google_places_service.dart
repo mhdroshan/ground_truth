@@ -42,7 +42,7 @@ class GooglePlacesService {
     // 1. Try Backend Proxy
     try {
       final backendUrl = Uri.parse('${ApiService.baseUrl}/places/autocomplete?query=${Uri.encodeComponent(input.trim())}');
-      final response = await http.get(backendUrl).timeout(const Duration(milliseconds: 2500));
+      final response = await http.get(backendUrl).timeout(const Duration(seconds: 8));
       if (response.statusCode == 200) {
         final data = json.decode(response.body);
         final list = (data['suggestions'] as List<dynamic>?) ?? [];
@@ -99,7 +99,7 @@ class GooglePlacesService {
     // 1. Try Backend Proxy
     try {
       final backendUrl = Uri.parse('${ApiService.baseUrl}/places/details?placeId=${Uri.encodeComponent(cleanId)}');
-      final response = await http.get(backendUrl).timeout(const Duration(milliseconds: 2500));
+      final response = await http.get(backendUrl).timeout(const Duration(seconds: 8));
       if (response.statusCode == 200) {
         final data = json.decode(response.body);
         final double? lat = (data['latitude'] as num?)?.toDouble();

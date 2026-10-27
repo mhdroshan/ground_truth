@@ -1,3 +1,4 @@
+import 'dart:io' show Platform;
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import '../models/event_model.dart';
@@ -224,8 +225,24 @@ class AppState extends ChangeNotifier {
   String? get selectedEventId => _selectedEventId;
 
   // Seed events
+  static const Set<String> dummyTagIds = {
+    'delhi_protest_2026',
+    'kerala_floods_2026',
+    'london_fire_2026',
+    'tokyo_earthquake_2026',
+    'election_counting_2026',
+    'paris_strike_2026',
+    'sf_climate_2026',
+    'sydney_heatwave_2026',
+  };
+
+  static bool isDummyTag(String tagId) => dummyTagIds.contains(tagId);
+
   List<EventModel> _events = [];
   List<EventModel> get events => _events;
+
+  /// Returns only real events from MongoDB or created by user (excludes mock dummy tags)
+  List<EventModel> get realEvents => _events.where((e) => !dummyTagIds.contains(e.id)).toList();
 
   // Seed posts keyed by eventId
   final Map<String, List<PostModel>> _postsByEvent = {};
@@ -537,22 +554,46 @@ class AppState extends ChangeNotifier {
   bool _isLoadingFromDb = false;
   bool get isLoadingFromDb => _isLoadingFromDb;
 
+  bool _disposed = false;
+
+  bool get _isTestEnvironment {
+    try {
+      if (Platform.environment.containsKey('FLUTTER_TEST')) return true;
+    } catch (_) {}
+    return false;
+  }
+
+  @override
+  void dispose() {
+    _disposed = true;
+    super.dispose();
+  }
+
   Future<void> loadRemoteDatabaseData() async {
     _isLoadingFromDb = true;
     notifyListeners();
 
     try {
       // 1. Fetch tags from MongoDB `tags` collection
-      final remoteTags = await ApiService.fetchRemoteTags();
-      if (remoteTags != null && remoteTags.isNotEmpty) {
-        _events = remoteTags;
-        if (_selectedEventId == null || !_events.any((e) => e.id == _selectedEventId)) {
-          _selectedEventId = _events.first.id;
+      var remoteTags = await ApiService.fetchRemoteTags();
+      var remotePosts = await ApiService.fetchRemotePosts();
+
+      // If initial fetch failed/timed out (e.g. Render cold start), retry once when not in test
+      if (!_disposed && !_isTestEnvironment && remoteTags == null && remotePosts == null) {
+        await Future.delayed(const Duration(seconds: 2));
+        if (!_disposed) {
+          remoteTags = await ApiService.fetchRemoteTags();
+          remotePosts = await ApiService.fetchRemotePosts();
         }
       }
 
-      // 2. Fetch posts from MongoDB `posts` collection
-      final remotePosts = await ApiService.fetchRemotePosts();
+      if (remoteTags != null) {
+        _events = remoteTags;
+        if (_selectedEventId == null || !_events.any((e) => e.id == _selectedEventId)) {
+          _selectedEventId = _events.isNotEmpty ? _events.first.id : null;
+        }
+      }
+
       if (remotePosts != null && remotePosts.isNotEmpty) {
         _postsByEvent.clear();
         for (final post in remotePosts) {
@@ -583,10 +624,12 @@ class AppState extends ChangeNotifier {
     }
   }
 
-  AppState() {
+  AppState({bool autoLoadRemote = true}) {
     _initializeData();
     _initAchievements();
-    loadRemoteDatabaseData();
+    if (autoLoadRemote) {
+      loadRemoteDatabaseData();
+    }
   }
 
   void selectFeedTab(FeedTab tab) {

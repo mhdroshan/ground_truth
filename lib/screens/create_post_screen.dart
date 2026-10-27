@@ -26,7 +26,7 @@ class CreatePostScreen extends StatefulWidget {
   State<CreatePostScreen> createState() => _CreatePostScreenState();
 }
 
-class _CreatePostScreenState extends State<CreatePostScreen> with SingleTickerProviderStateMixin {
+class _CreatePostScreenState extends State<CreatePostScreen> {
   final _contentController = TextEditingController();
   late PostType _selectedType;
   bool _isAnonymous = false;
@@ -40,14 +40,6 @@ class _CreatePostScreenState extends State<CreatePostScreen> with SingleTickerPr
   String? _attachedVideoName;
   int _attachedVideoDuration = 30; // seconds
 
-  // Voice recording state
-  bool _isVoiceRecording = false;
-  bool _hasVoiceRecorded = false;
-  int _voiceSeconds = 0;
-  Timer? _voiceTimer;
-  List<double> _voiceWaveform = [0.3, 0.6, 0.9, 0.5, 0.7, 0.9, 0.4, 0.8];
-  late AnimationController _pulseController;
-
   // Poll options state
   final List<TextEditingController> _pollOptionControllers = [
     TextEditingController(),
@@ -57,15 +49,11 @@ class _CreatePostScreenState extends State<CreatePostScreen> with SingleTickerPr
   @override
   void initState() {
     super.initState();
-    _selectedType = widget.initialType;
+    _selectedType = widget.initialType == PostType.voiceNote ? PostType.text : widget.initialType;
     if (_selectedType == PostType.poll && _pollOptionControllers.isEmpty) {
       _pollOptionControllers.add(TextEditingController());
       _pollOptionControllers.add(TextEditingController());
     }
-    _pulseController = AnimationController(
-      vsync: this,
-      duration: const Duration(milliseconds: 1000),
-    );
   }
 
   @override
@@ -73,8 +61,6 @@ class _CreatePostScreenState extends State<CreatePostScreen> with SingleTickerPr
     for (final c in _pollOptionControllers) {
       c.dispose();
     }
-    _voiceTimer?.cancel();
-    _pulseController.dispose();
     _contentController.dispose();
     super.dispose();
   }
@@ -104,13 +90,6 @@ class _CreatePostScreenState extends State<CreatePostScreen> with SingleTickerPr
     }
   }
 
-  // --- Voice Handling ---
-  void _handleVoiceTap() {
-    setState(() {
-      _selectedType = PostType.voiceNote;
-    });
-  }
-
   // --- Poll Handling ---
   void _handlePollTap() {
     setState(() {
@@ -120,49 +99,6 @@ class _CreatePostScreenState extends State<CreatePostScreen> with SingleTickerPr
           _pollOptionControllers.add(TextEditingController());
         }
       }
-    });
-  }
-
-  void _startVoiceRecording() {
-    _pulseController.repeat(reverse: true);
-    setState(() {
-      _isVoiceRecording = true;
-      _voiceSeconds = 0;
-      _hasVoiceRecorded = false;
-    });
-
-    _voiceTimer?.cancel();
-    _voiceTimer = Timer.periodic(const Duration(seconds: 1), (timer) {
-      if (!mounted) return;
-      setState(() {
-        _voiceSeconds++;
-        _voiceWaveform = List.generate(8, (i) => 0.2 + ((i + _voiceSeconds) % 5) * 0.18);
-      });
-      if (_voiceSeconds >= 60) {
-        _stopVoiceRecording();
-      }
-    });
-  }
-
-  void _stopVoiceRecording() {
-    _pulseController.stop();
-    _voiceTimer?.cancel();
-    setState(() {
-      _isVoiceRecording = false;
-      _hasVoiceRecorded = true;
-      if (_voiceSeconds == 0) _voiceSeconds = 5;
-    });
-  }
-
-  void _cancelVoiceRecording() {
-    _pulseController.stop();
-    _pulseController.reset();
-    _voiceTimer?.cancel();
-    setState(() {
-      _isVoiceRecording = false;
-      _hasVoiceRecorded = false;
-      _voiceSeconds = 0;
-      if (_selectedType == PostType.voiceNote) _selectedType = PostType.text;
     });
   }
 
@@ -187,7 +123,7 @@ class _CreatePostScreenState extends State<CreatePostScreen> with SingleTickerPr
     }
 
     final rawText = _contentController.text.trim();
-    final hasMedia = _attachedPhotoUrl != null || _attachedVideoThumbnailUrl != null || _hasVoiceRecorded;
+    final hasMedia = _attachedPhotoUrl != null || _attachedVideoThumbnailUrl != null;
 
     if (_selectedType == PostType.poll) {
       if (rawText.isEmpty) {
@@ -241,8 +177,6 @@ class _CreatePostScreenState extends State<CreatePostScreen> with SingleTickerPr
         finalContent = 'Verified eyewitness photo from ${widget.event.tagName}.';
       } else if (_selectedType == PostType.video) {
         finalContent = 'Live verified field footage from ${widget.event.tagName}.';
-      } else if (_selectedType == PostType.voiceNote) {
-        finalContent = 'Verified ground audio dispatches from ${widget.event.tagName}.';
       } else {
         finalContent = 'Verified on-site ground report from ${widget.event.tagName}.';
       }
@@ -250,8 +184,8 @@ class _CreatePostScreenState extends State<CreatePostScreen> with SingleTickerPr
 
     final String? finalPhotoUrl = _attachedPhotoUrl ?? (_selectedType == PostType.photo ? 'https://images.unsplash.com/photo-1541872703-74c5e44368f9?w=800&auto=format&fit=crop&q=80' : null);
     final String? finalVideoUrl = _attachedVideoThumbnailUrl ?? (_selectedType == PostType.video ? 'https://images.unsplash.com/photo-1517457373958-b7bdd4587205?w=800&auto=format&fit=crop&q=80' : null);
-    final int? finalAudioDuration = _selectedType == PostType.voiceNote ? (_voiceSeconds > 0 ? _voiceSeconds : 24) : null;
-    final List<double>? finalWaveform = _selectedType == PostType.voiceNote ? _voiceWaveform : null;
+    final int? finalAudioDuration = null;
+    final List<double>? finalWaveform = null;
 
     List<PollOption>? finalPollOptions;
     if (_selectedType == PostType.poll) {
@@ -579,7 +513,7 @@ class _CreatePostScreenState extends State<CreatePostScreen> with SingleTickerPr
                   ),
                   const SizedBox(height: 16),
 
-                  // Normal Media Buttons Row (Photo, Video, Voice, Poll)
+                  // Normal Media Buttons Row (Photo, Video, Poll)
                   Row(
                     children: [
                       _buildMediaButton(
@@ -596,14 +530,6 @@ class _CreatePostScreenState extends State<CreatePostScreen> with SingleTickerPr
                         type: PostType.video,
                         hasAttachment: _attachedVideoThumbnailUrl != null,
                         onTap: _handleVideoTap,
-                      ),
-                      const SizedBox(width: 8),
-                      _buildMediaButton(
-                        icon: Icons.mic_none_rounded,
-                        label: 'Voice',
-                        type: PostType.voiceNote,
-                        hasAttachment: _hasVoiceRecorded,
-                        onTap: _handleVoiceTap,
                       ),
                       const SizedBox(width: 8),
                       _buildMediaButton(
@@ -627,12 +553,6 @@ class _CreatePostScreenState extends State<CreatePostScreen> with SingleTickerPr
                   // 2. Video Preview Card
                   if (_attachedVideoThumbnailUrl != null) ...[
                     _buildVideoPreviewCard(),
-                    const SizedBox(height: 14),
-                  ],
-
-                  // 3. Voice Studio / Recorder Card
-                  if (_selectedType == PostType.voiceNote) ...[
-                    _buildVoiceStudioCard(),
                     const SizedBox(height: 14),
                   ],
 
@@ -1019,170 +939,7 @@ class _CreatePostScreenState extends State<CreatePostScreen> with SingleTickerPr
     );
   }
 
-  Widget _buildVoiceStudioCard() {
-    return Container(
-      padding: const EdgeInsets.all(16),
-      decoration: BoxDecoration(
-        color: const Color(0xFFF8FAFC),
-        borderRadius: BorderRadius.circular(16),
-        border: Border.all(
-          color: _isVoiceRecording ? AppColors.alertRed : AppColors.border,
-          width: _isVoiceRecording ? 1.5 : 1.0,
-        ),
-      ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Row(
-            mainAxisAlignment: MainAxisAlignment.spaceBetween,
-            children: [
-              Row(
-                children: [
-                  Container(
-                    width: 32,
-                    height: 32,
-                    decoration: BoxDecoration(
-                      color: _isVoiceRecording ? const Color(0xFFFEE2E2) : const Color(0xFFD0E1FD),
-                      shape: BoxShape.circle,
-                    ),
-                    child: Icon(
-                      _isVoiceRecording ? Icons.mic : Icons.graphic_eq_rounded,
-                      size: 18,
-                      color: _isVoiceRecording ? AppColors.alertRed : AppColors.primaryNavy,
-                    ),
-                  ),
-                  const SizedBox(width: 10),
-                  Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Text(
-                        _isVoiceRecording
-                            ? 'RECORDING FIELD AUDIO...'
-                            : (_hasVoiceRecorded ? 'AUDIO REPORT READY' : 'ON-SITE AUDIO RECORDER'),
-                        style: TextStyle(
-                          color: _isVoiceRecording ? AppColors.alertRed : AppColors.primaryNavy,
-                          fontSize: 11.5,
-                          fontWeight: FontWeight.w800,
-                          letterSpacing: 0.5,
-                        ),
-                      ),
-                      Text(
-                        _isVoiceRecording
-                            ? '0:${_voiceSeconds.toString().padLeft(2, '0')}'
-                            : (_hasVoiceRecorded ? '0:${_voiceSeconds.toString().padLeft(2, '0')} recorded' : 'Max 60 seconds with ambient watermark'),
-                        style: TextStyle(
-                          color: _isVoiceRecording ? AppColors.alertRed : AppColors.textSecondary,
-                          fontSize: 12,
-                          fontWeight: _isVoiceRecording ? FontWeight.w800 : FontWeight.w500,
-                        ),
-                      ),
-                    ],
-                  ),
-                ],
-              ),
-              IconButton(
-                icon: const Icon(Icons.close, size: 18, color: AppColors.textMuted),
-                onPressed: _cancelVoiceRecording,
-              ),
-            ],
-          ),
-          const SizedBox(height: 16),
 
-          // Animated / Interactive Waveform Visualizer
-          Container(
-            height: 48,
-            padding: const EdgeInsets.symmetric(horizontal: 14),
-            decoration: BoxDecoration(
-              color: Colors.white,
-              borderRadius: BorderRadius.circular(10),
-              border: Border.all(color: AppColors.border),
-            ),
-            child: Row(
-              mainAxisAlignment: MainAxisAlignment.spaceEvenly,
-              crossAxisAlignment: CrossAxisAlignment.center,
-              children: List.generate(_voiceWaveform.length, (idx) {
-                final barHeight = 10 + (_voiceWaveform[idx] * 28);
-                return AnimatedContainer(
-                  duration: const Duration(milliseconds: 250),
-                  width: 5,
-                  height: barHeight,
-                  decoration: BoxDecoration(
-                    color: _isVoiceRecording
-                        ? AppColors.alertRed
-                        : (_hasVoiceRecorded ? AppColors.primaryNavy : const Color(0xFFCBD5E1)),
-                    borderRadius: BorderRadius.circular(3),
-                  ),
-                );
-              }),
-            ),
-          ),
-          const SizedBox(height: 16),
-
-          // Controls
-          Row(
-            mainAxisAlignment: MainAxisAlignment.center,
-            children: [
-              if (!_isVoiceRecording && !_hasVoiceRecorded)
-                ElevatedButton.icon(
-                  style: ElevatedButton.styleFrom(
-                    backgroundColor: AppColors.primaryNavy,
-                    foregroundColor: Colors.white,
-                    padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 12),
-                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
-                  ),
-                  onPressed: _startVoiceRecording,
-                  icon: const Icon(Icons.mic, size: 18),
-                  label: const Text('Start Recording', style: TextStyle(fontWeight: FontWeight.w700)),
-                )
-              else if (_isVoiceRecording)
-                FadeTransition(
-                  opacity: _pulseController,
-                  child: ElevatedButton.icon(
-                    style: ElevatedButton.styleFrom(
-                      backgroundColor: AppColors.alertRed,
-                      foregroundColor: Colors.white,
-                      padding: const EdgeInsets.symmetric(horizontal: 22, vertical: 12),
-                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
-                    ),
-                    onPressed: _stopVoiceRecording,
-                    icon: const Icon(Icons.stop, size: 18),
-                    label: const Text('Stop & Attach', style: TextStyle(fontWeight: FontWeight.w700)),
-                  ),
-                )
-              else ...[
-                OutlinedButton.icon(
-                  style: OutlinedButton.styleFrom(
-                    foregroundColor: AppColors.primaryNavy,
-                    side: const BorderSide(color: AppColors.border),
-                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
-                  ),
-                  onPressed: _startVoiceRecording,
-                  icon: const Icon(Icons.refresh, size: 16),
-                  label: const Text('Re-record', style: TextStyle(fontWeight: FontWeight.w600)),
-                ),
-                const SizedBox(width: 12),
-                ElevatedButton.icon(
-                  style: ElevatedButton.styleFrom(
-                    backgroundColor: const Color(0xFFDCFCE7),
-                    foregroundColor: const Color(0xFF15803D),
-                    elevation: 0,
-                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
-                  ),
-                  onPressed: () {
-                    ScaffoldMessenger.of(context).showSnackBar(
-                      const SnackBar(content: Text('Audio note attached to eyewitness report')),
-                    );
-                  },
-                  icon: const Icon(Icons.check, size: 16),
-                  label: const Text('Audio Attached', style: TextStyle(fontWeight: FontWeight.w700)),
-                ),
-              ],
-            ],
-          ),
-        ],
-      ),
-    );
-  }
 
   Widget _buildPollCreatorCard() {
     const letters = ['A', 'B', 'C', 'D', 'E', 'F'];
