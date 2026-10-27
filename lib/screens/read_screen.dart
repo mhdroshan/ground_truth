@@ -239,131 +239,83 @@ class _ReadScreenState extends State<ReadScreen> {
                     final post = trendingPosts[index];
                     final event = appState.getEventForPost(post);
 
-                    return Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        // Tag Header Pill over each post
-                        if (event != null)
-                          Padding(
-                            padding: const EdgeInsets.fromLTRB(20, 8, 16, 0),
-                            child: InkWell(
-                              onTap: () {
-                                Navigator.push(
-                                  context,
-                                  MaterialPageRoute(
-                                    builder: (context) => EventDetailScreen(eventId: event.id),
-                                  ),
-                                );
-                              },
-                              borderRadius: BorderRadius.circular(12),
-                              child: Row(
-                                mainAxisSize: MainAxisSize.min,
-                                children: [
-                                  Container(
-                                    padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
-                                    decoration: BoxDecoration(
-                                      color: const Color(0xFFD0E1FD),
-                                      borderRadius: BorderRadius.circular(12),
-                                    ),
-                                    child: Row(
-                                      mainAxisSize: MainAxisSize.min,
-                                      children: [
-                                        const Icon(Icons.tag, size: 12, color: AppColors.primaryNavy),
-                                        const SizedBox(width: 3),
-                                        Text(
-                                          event.tagName,
-                                          style: const TextStyle(
-                                            color: AppColors.primaryNavy,
-                                            fontSize: 11,
-                                            fontWeight: FontWeight.w800,
-                                          ),
-                                        ),
-                                        const SizedBox(width: 6),
-                                        Text(
-                                          '• ${event.city}',
-                                          style: const TextStyle(
-                                            color: AppColors.textSecondary,
-                                            fontSize: 10.5,
-                                            fontWeight: FontWeight.w600,
-                                          ),
-                                        ),
-                                      ],
-                                    ),
-                                  ),
-                                ],
+                    return PostCard(
+                      post: post,
+                      isInsideGeofence: appState.isUserInsidePostGeofence(post, userLoc),
+                      onVote: (direction) {
+                        final res = appState.votePost(
+                          eventId: post.eventId,
+                          postId: post.id,
+                          direction: direction,
+                          userLocation: userLoc,
+                        );
+
+                        if (!res.allowed) {
+                          ScaffoldMessenger.of(context).showSnackBar(
+                            SnackBar(
+                              backgroundColor: AppColors.alertRed,
+                              content: Text(res.message ?? 'Action restricted by physical geofence.'),
+                            ),
+                          );
+                        } else {
+                          ScaffoldMessenger.of(context).showSnackBar(
+                            SnackBar(
+                              duration: const Duration(seconds: 2),
+                              backgroundColor: res.isRemoved
+                                  ? AppColors.primaryNavy
+                                  : (res.userVote == -1
+                                      ? const Color(0xFF991B1B)
+                                      : const Color(0xFF0D652D)),
+                              content: Text(
+                                res.isRemoved
+                                    ? (direction == 1 ? 'Verification vote removed.' : 'Dispute vote removed.')
+                                    : (res.userVote == 1
+                                        ? 'On-site verification vote recorded! (+20 XP)'
+                                        : 'Dispute recorded from on-site position. (+20 XP)'),
                               ),
                             ),
-                          ),
-
-                        PostCard(
-                          post: post,
-                          onVote: (direction) {
-                            final res = appState.votePost(
-                              eventId: post.eventId,
-                              postId: post.id,
-                              direction: direction,
-                              userLocation: userLoc,
+                          );
+                        }
+                      },
+                      onPollVote: (optId) {
+                        final res = appState.votePoll(
+                          eventId: post.eventId,
+                          postId: post.id,
+                          optionId: optId,
+                          userLocation: userLoc,
+                        );
+                        if (!res.allowed) {
+                          if (event != null) {
+                            VerificationRestrictedSheet.show(
+                              context,
+                              event: event,
+                              distanceMeters: res.distanceMeters ?? event.distanceFromUser(userLoc),
+                              customTitle: 'On-Site Poll Voting Required',
+                              customMessage: 'The sole purpose of GroundTruth is to verify ground reality. Only eyewitnesses physically located inside ${event.tagName} (${event.formattedRadius} radius) can participate in polls.',
+                              onOpenComments: () => CommentsSheet.show(context, event, post),
                             );
-
-                            if (!res.allowed) {
-                              if (event != null) {
-                                VerificationRestrictedSheet.show(
-                                  context,
-                                  event: event,
-                                  distanceMeters: res.distanceMeters ?? event.distanceFromUser(userLoc),
-                                  onOpenComments: () => CommentsSheet.show(context, event, post),
-                                );
-                              }
-                            } else {
-                              ScaffoldMessenger.of(context).showSnackBar(
-                                const SnackBar(
-                                  backgroundColor: Color(0xFF0D652D),
-                                  content: Text('On-site verification vote recorded! (+20 XP)'),
-                                ),
-                              );
-                            }
-                          },
-                          onPollVote: (optId) {
-                            final res = appState.votePoll(
-                              eventId: post.eventId,
-                              postId: post.id,
-                              optionId: optId,
-                              userLocation: userLoc,
+                          } else {
+                            ScaffoldMessenger.of(context).showSnackBar(
+                              SnackBar(
+                                backgroundColor: AppColors.alertRed,
+                                content: Text(res.message ?? 'Only eyewitnesses on-site can vote in polls.'),
+                              ),
                             );
-                            if (!res.allowed) {
-                              if (event != null) {
-                                VerificationRestrictedSheet.show(
-                                  context,
-                                  event: event,
-                                  distanceMeters: res.distanceMeters ?? event.distanceFromUser(userLoc),
-                                  customTitle: 'On-Site Poll Voting Required',
-                                  customMessage: 'The sole purpose of GroundTruth is to verify ground reality. Only eyewitnesses physically located inside ${event.tagName} (${event.formattedRadius} radius) can participate in polls.',
-                                  onOpenComments: () => CommentsSheet.show(context, event, post),
-                                );
-                              } else {
-                                ScaffoldMessenger.of(context).showSnackBar(
-                                  SnackBar(
-                                    backgroundColor: AppColors.alertRed,
-                                    content: Text(res.message ?? 'Only eyewitnesses on-site can vote in polls.'),
-                                  ),
-                                );
-                              }
-                            } else {
-                              ScaffoldMessenger.of(context).showSnackBar(
-                                const SnackBar(
-                                  backgroundColor: Color(0xFF0D652D),
-                                  content: Text('Eyewitness poll vote recorded! (+15 XP)'),
-                                ),
-                              );
-                            }
-                          },
-                          onOpenComments: () {
-                            if (event != null) {
-                              CommentsSheet.show(context, event, post);
-                            }
-                          },
-                        ),
-                      ],
+                          }
+                        } else {
+                          ScaffoldMessenger.of(context).showSnackBar(
+                            const SnackBar(
+                              backgroundColor: Color(0xFF0D652D),
+                              content: Text('Eyewitness poll vote recorded! (+15 XP)'),
+                            ),
+                          );
+                        }
+                      },
+                      onOpenComments: () {
+                        if (event != null) {
+                          CommentsSheet.show(context, event, post);
+                        }
+                      },
                     );
                   },
                 ),

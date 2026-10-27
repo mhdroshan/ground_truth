@@ -67,26 +67,196 @@ class _CreatePostScreenState extends State<CreatePostScreen> {
 
   // --- Normal Direct Photo Uploader ---
   Future<void> _handlePhotoTap() async {
-    final file = await pickFilePlatform(accept: 'image/*');
-    if (file != null && mounted) {
+    final bool? useCamera = await showModalBottomSheet<bool>(
+      context: context,
+      backgroundColor: Colors.white,
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
+      ),
+      builder: (ctx) => SafeArea(
+        child: Padding(
+          padding: const EdgeInsets.symmetric(vertical: 20, horizontal: 16),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Container(
+                width: 36,
+                height: 4,
+                decoration: BoxDecoration(
+                  color: const Color(0xFFE2E8F0),
+                  borderRadius: BorderRadius.circular(2),
+                ),
+              ),
+              const SizedBox(height: 16),
+              const Text(
+                'Attach Eyewitness Photo',
+                style: TextStyle(
+                  color: AppColors.primaryNavy,
+                  fontSize: 16,
+                  fontWeight: FontWeight.w800,
+                ),
+              ),
+              const SizedBox(height: 16),
+              ListTile(
+                leading: Container(
+                  padding: const EdgeInsets.all(8),
+                  decoration: BoxDecoration(
+                    color: const Color(0xFFEFF6FF),
+                    borderRadius: BorderRadius.circular(10),
+                  ),
+                  child: const Icon(Icons.camera_alt_rounded, color: Color(0xFF2563EB)),
+                ),
+                title: const Text('Take Live Photo', style: TextStyle(fontWeight: FontWeight.w700)),
+                subtitle: const Text('Capture live on-site eyewitness photo with camera', style: TextStyle(fontSize: 12)),
+                onTap: () => Navigator.pop(ctx, true),
+              ),
+              const Divider(height: 1),
+              ListTile(
+                leading: Container(
+                  padding: const EdgeInsets.all(8),
+                  decoration: BoxDecoration(
+                    color: const Color(0xFFF1F5F9),
+                    borderRadius: BorderRadius.circular(10),
+                  ),
+                  child: const Icon(Icons.photo_library_rounded, color: AppColors.primaryNavy),
+                ),
+                title: const Text('Choose from Photo Gallery', style: TextStyle(fontWeight: FontWeight.w700)),
+                subtitle: const Text('Select a photo from your photo library', style: TextStyle(fontSize: 12)),
+                onTap: () => Navigator.pop(ctx, false),
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+
+    if (useCamera == null) return;
+
+    final file = await pickFilePlatform(accept: 'image/*', fromCamera: useCamera);
+    if (!mounted) return;
+
+    if (file != null) {
       setState(() {
         _attachedPhotoUrl = file.dataUrl;
         _attachedPhotoName = file.name;
         _selectedType = PostType.photo;
       });
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          backgroundColor: const Color(0xFF0D652D),
+          behavior: SnackBarBehavior.floating,
+          content: Row(
+            children: [
+              const Icon(Icons.check_circle_rounded, color: Colors.white, size: 18),
+              const SizedBox(width: 8),
+              Expanded(
+                child: Text(
+                  'Photo attached: ${file.name} (${file.formattedSize})',
+                  style: const TextStyle(fontWeight: FontWeight.w600, fontSize: 12),
+                ),
+              ),
+            ],
+          ),
+        ),
+      );
     }
   }
 
   // --- Normal Direct Video Uploader ---
   Future<void> _handleVideoTap() async {
-    final file = await pickFilePlatform(accept: 'video/*');
-    if (file != null && mounted) {
+    final bool? useCamera = await showModalBottomSheet<bool>(
+      context: context,
+      backgroundColor: Colors.white,
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
+      ),
+      builder: (ctx) => SafeArea(
+        child: Padding(
+          padding: const EdgeInsets.symmetric(vertical: 20, horizontal: 16),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Container(
+                width: 36,
+                height: 4,
+                decoration: BoxDecoration(
+                  color: const Color(0xFFE2E8F0),
+                  borderRadius: BorderRadius.circular(2),
+                ),
+              ),
+              const SizedBox(height: 16),
+              const Text(
+                'Attach Eyewitness Video',
+                style: TextStyle(
+                  color: AppColors.primaryNavy,
+                  fontSize: 16,
+                  fontWeight: FontWeight.w800,
+                ),
+              ),
+              const SizedBox(height: 16),
+              ListTile(
+                leading: Container(
+                  padding: const EdgeInsets.all(8),
+                  decoration: BoxDecoration(
+                    color: const Color(0xFFEFF6FF),
+                    borderRadius: BorderRadius.circular(10),
+                  ),
+                  child: const Icon(Icons.videocam_rounded, color: Color(0xFF2563EB)),
+                ),
+                title: const Text('Record Live Video', style: TextStyle(fontWeight: FontWeight.w700)),
+                subtitle: const Text('Capture live on-site eyewitness footage with camera', style: TextStyle(fontSize: 12)),
+                onTap: () => Navigator.pop(ctx, true),
+              ),
+              const Divider(height: 1),
+              ListTile(
+                leading: Container(
+                  padding: const EdgeInsets.all(8),
+                  decoration: BoxDecoration(
+                    color: const Color(0xFFF1F5F9),
+                    borderRadius: BorderRadius.circular(10),
+                  ),
+                  child: const Icon(Icons.video_library_rounded, color: AppColors.primaryNavy),
+                ),
+                title: const Text('Choose Video from Gallery', style: TextStyle(fontWeight: FontWeight.w700)),
+                subtitle: const Text('Select existing recorded footage from your device', style: TextStyle(fontSize: 12)),
+                onTap: () => Navigator.pop(ctx, false),
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+
+    if (useCamera == null) return;
+
+    final file = await pickFilePlatform(accept: 'video/*', fromCamera: useCamera);
+    if (!mounted) return;
+
+    if (file != null) {
       setState(() {
         _attachedVideoThumbnailUrl = file.dataUrl ?? 'https://images.unsplash.com/photo-1517457373958-b7bdd4587205?w=800&auto=format&fit=crop&q=80';
         _attachedVideoName = file.name;
         _attachedVideoDuration = 30;
         _selectedType = PostType.video;
       });
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          backgroundColor: const Color(0xFF0D652D),
+          behavior: SnackBarBehavior.floating,
+          content: Row(
+            children: [
+              const Icon(Icons.check_circle_rounded, color: Colors.white, size: 18),
+              const SizedBox(width: 8),
+              Expanded(
+                child: Text(
+                  'Video attached: ${file.name} (${file.formattedSize})',
+                  style: const TextStyle(fontWeight: FontWeight.w600, fontSize: 12),
+                ),
+              ),
+            ],
+          ),
+        ),
+      );
     }
   }
 
@@ -178,7 +348,7 @@ class _CreatePostScreenState extends State<CreatePostScreen> {
       } else if (_selectedType == PostType.video) {
         finalContent = 'Live verified field footage from ${widget.event.tagName}.';
       } else {
-        finalContent = 'Verified on-site ground report from ${widget.event.tagName}.';
+        finalContent = 'Verified ground report from ${widget.event.tagName}.';
       }
     }
 
@@ -343,16 +513,40 @@ class _CreatePostScreenState extends State<CreatePostScreen> {
                   ),
                 ),
                 const SizedBox(height: 24),
-                ElevatedButton.icon(
-                  style: ElevatedButton.styleFrom(
-                    backgroundColor: AppColors.primaryNavy,
-                    foregroundColor: Colors.white,
-                    padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 12),
-                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-                  ),
-                  onPressed: () => Navigator.pop(context),
-                  icon: const Icon(Icons.arrow_back, size: 16),
-                  label: const Text('Back to Tags Feed'),
+                Wrap(
+                  spacing: 10,
+                  runSpacing: 10,
+                  alignment: WrapAlignment.center,
+                  children: [
+                    OutlinedButton.icon(
+                      style: OutlinedButton.styleFrom(
+                        foregroundColor: AppColors.primaryNavy,
+                        side: const BorderSide(color: AppColors.primaryNavy),
+                        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+                        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                      ),
+                      onPressed: () => locationService.refreshPhysicalLocation(),
+                      icon: locationService.isLocating
+                          ? const SizedBox(
+                              width: 14,
+                              height: 14,
+                              child: CircularProgressIndicator(strokeWidth: 2, color: AppColors.primaryNavy),
+                            )
+                          : const Icon(Icons.refresh_rounded, size: 16),
+                      label: Text(locationService.isLocating ? 'Acquiring GPS...' : 'Refresh GPS Location'),
+                    ),
+                    ElevatedButton.icon(
+                      style: ElevatedButton.styleFrom(
+                        backgroundColor: AppColors.primaryNavy,
+                        foregroundColor: Colors.white,
+                        padding: const EdgeInsets.symmetric(horizontal: 18, vertical: 12),
+                        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                      ),
+                      onPressed: () => Navigator.pop(context),
+                      icon: const Icon(Icons.arrow_back, size: 16),
+                      label: const Text('Back to Tags Feed'),
+                    ),
+                  ],
                 ),
               ],
             ),

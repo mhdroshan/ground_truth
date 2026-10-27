@@ -1,18 +1,20 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import '../models/event_model.dart';
-import '../models/journalist_model.dart';
+import '../models/user_model.dart';
 import '../providers/app_state.dart';
 import '../providers/location_service.dart';
+import '../services/api_service.dart';
 import '../theme/app_colors.dart';
 import '../widgets/post/post_card.dart';
 import '../widgets/post/verification_restricted_sheet.dart';
+import '../widgets/common/live_location_tags_slider.dart';
 import 'comments_sheet.dart';
 import 'create_post_screen.dart';
-import 'event_detail_screen.dart';
 import 'settings_screen.dart';
 import 'alerts_screen.dart';
 import 'login_screen.dart';
+import 'profile_screen.dart';
 
 class HomeFeedScreen extends StatefulWidget {
   const HomeFeedScreen({super.key});
@@ -30,11 +32,17 @@ class _HomeFeedScreenState extends State<HomeFeedScreen> {
 
     // Detect events user is physically inside
     final eventsUserIsInside = appState.getEventsUserIsInside(userLoc);
-    final inLocationEvent = appState.getActiveCurrentLocationEvent(userLoc);
+    if (appState.selectedEventId != null) {
+      final selectedIdx = eventsUserIsInside.indexWhere((e) => e.id == appState.selectedEventId);
+      if (selectedIdx > 0) {
+        final selected = eventsUserIsInside.removeAt(selectedIdx);
+        eventsUserIsInside.insert(0, selected);
+      }
+    }
 
     // Posts for home feed
     final homePosts = appState.getHomePosts();
-    final followedWriters = appState.followedJournalists;
+    final followedProfiles = appState.getFollowedProfiles();
     final trendingEvents = appState.events.where((e) => e.isTrending || e.isHighActivity).toList();
 
     return Scaffold(
@@ -135,14 +143,14 @@ class _HomeFeedScreenState extends State<HomeFeedScreen> {
               if (appState.recentlyUnlockedAchievement != null)
                 _buildAchievementToast(context, appState),
 
-            // HERO REQUIREMENT: Current location event prompt
-            _buildCurrentLocationHero(context, inLocationEvent, userLoc),
+            // HERO REQUIREMENT: Current location event prompt (Auto-sliding tags matching location)
+            LiveLocationTagsSlider(events: eventsUserIsInside),
 
             // INTERESTS SECTION: Selection based feed
             _buildInterestsSection(context, appState),
 
-            // WRITERS & JOURNALISTS YOU FOLLOW SECTION
-            _buildFollowedWritersSection(context, appState, followedWriters),
+            // PROFILES YOU FOLLOW SECTION (Real profiles from followers/following)
+            _buildFollowedProfilesSection(context, appState, followedProfiles),
 
             // TRENDING TAGS CAROUSEL
             _buildTrendingTagsSection(context, appState, trendingEvents, userLoc),
@@ -170,131 +178,83 @@ class _HomeFeedScreenState extends State<HomeFeedScreen> {
                   final post = homePosts[index];
                   final event = appState.getEventForPost(post);
 
-                  return Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      // Tag header badge above each post
-                      if (event != null)
-                        Padding(
-                          padding: const EdgeInsets.fromLTRB(20, 8, 16, 0),
-                          child: InkWell(
-                            onTap: () {
-                              Navigator.push(
-                                context,
-                                MaterialPageRoute(
-                                  builder: (context) => EventDetailScreen(eventId: event.id),
-                                ),
-                              );
-                            },
-                            borderRadius: BorderRadius.circular(12),
-                            child: Row(
-                              mainAxisSize: MainAxisSize.min,
-                              children: [
-                                Container(
-                                  padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
-                                  decoration: BoxDecoration(
-                                    color: const Color(0xFFD0E1FD),
-                                    borderRadius: BorderRadius.circular(12),
-                                  ),
-                                  child: Row(
-                                    mainAxisSize: MainAxisSize.min,
-                                    children: [
-                                      const Icon(Icons.tag, size: 12, color: AppColors.primaryNavy),
-                                      const SizedBox(width: 3),
-                                      Text(
-                                        event.tagName,
-                                        style: const TextStyle(
-                                          color: AppColors.primaryNavy,
-                                          fontSize: 11,
-                                          fontWeight: FontWeight.w800,
-                                        ),
-                                      ),
-                                      const SizedBox(width: 6),
-                                      Text(
-                                        '• ${event.city}',
-                                        style: const TextStyle(
-                                          color: AppColors.textSecondary,
-                                          fontSize: 10.5,
-                                          fontWeight: FontWeight.w600,
-                                        ),
-                                      ),
-                                    ],
-                                  ),
-                                ),
-                              ],
+                  return PostCard(
+                    post: post,
+                    isInsideGeofence: appState.isUserInsidePostGeofence(post, userLoc),
+                    onVote: (direction) {
+                      final res = appState.votePost(
+                        eventId: post.eventId,
+                        postId: post.id,
+                        direction: direction,
+                        userLocation: userLoc,
+                      );
+
+                      if (!res.allowed) {
+                        ScaffoldMessenger.of(context).showSnackBar(
+                          SnackBar(
+                            backgroundColor: AppColors.alertRed,
+                            content: Text(res.message ?? 'Action restricted by physical geofence.'),
+                          ),
+                        );
+                      } else {
+                        ScaffoldMessenger.of(context).showSnackBar(
+                          SnackBar(
+                            duration: const Duration(seconds: 2),
+                            backgroundColor: res.isRemoved
+                                ? AppColors.primaryNavy
+                                : (res.userVote == -1
+                                    ? const Color(0xFF991B1B)
+                                    : const Color(0xFF0D652D)),
+                            content: Text(
+                              res.isRemoved
+                                  ? (direction == 1 ? 'Verification vote removed.' : 'Dispute vote removed.')
+                                  : (res.userVote == 1
+                                      ? 'News verified! +20 XP awarded.'
+                                      : 'Dispute recorded. +20 XP awarded.'),
                             ),
                           ),
-                        ),
-
-                      PostCard(
-                        post: post,
-                        onVote: (direction) {
-                          final res = appState.votePost(
-                            eventId: post.eventId,
-                            postId: post.id,
-                            direction: direction,
-                            userLocation: userLoc,
+                        );
+                      }
+                    },
+                    onPollVote: (optId) {
+                      final res = appState.votePoll(
+                        eventId: post.eventId,
+                        postId: post.id,
+                        optionId: optId,
+                        userLocation: userLoc,
+                      );
+                      if (!res.allowed) {
+                        if (event != null) {
+                          VerificationRestrictedSheet.show(
+                            context,
+                            event: event,
+                            distanceMeters: res.distanceMeters ?? event.distanceFromUser(userLoc),
+                            customTitle: 'On-Site Poll Voting Required',
+                            customMessage: 'The sole purpose of GroundTruth is to verify ground reality. Only eyewitnesses physically located inside ${event.tagName} (${event.formattedRadius} radius) can participate in polls.',
+                            onOpenComments: () => CommentsSheet.show(context, event, post),
                           );
-
-                          if (!res.allowed) {
-                            if (event != null) {
-                              VerificationRestrictedSheet.show(
-                                context,
-                                event: event,
-                                distanceMeters: res.distanceMeters ?? event.distanceFromUser(userLoc),
-                                onOpenComments: () => CommentsSheet.show(context, event, post),
-                              );
-                            }
-                          } else {
-                            ScaffoldMessenger.of(context).showSnackBar(
-                              const SnackBar(
-                                backgroundColor: Color(0xFF0D652D),
-                                content: Text('News verified on-site! +20 XP awarded.'),
-                              ),
-                            );
-                          }
-                        },
-                        onPollVote: (optId) {
-                          final res = appState.votePoll(
-                            eventId: post.eventId,
-                            postId: post.id,
-                            optionId: optId,
-                            userLocation: userLoc,
+                        } else {
+                          ScaffoldMessenger.of(context).showSnackBar(
+                            SnackBar(
+                              backgroundColor: AppColors.alertRed,
+                              content: Text(res.message ?? 'Only eyewitnesses on-site can vote in polls.'),
+                            ),
                           );
-                          if (!res.allowed) {
-                            if (event != null) {
-                              VerificationRestrictedSheet.show(
-                                context,
-                                event: event,
-                                distanceMeters: res.distanceMeters ?? event.distanceFromUser(userLoc),
-                                customTitle: 'On-Site Poll Voting Required',
-                                customMessage: 'The sole purpose of GroundTruth is to verify ground reality. Only eyewitnesses physically located inside ${event.tagName} (${event.formattedRadius} radius) can participate in polls.',
-                                onOpenComments: () => CommentsSheet.show(context, event, post),
-                              );
-                            } else {
-                              ScaffoldMessenger.of(context).showSnackBar(
-                                SnackBar(
-                                  backgroundColor: AppColors.alertRed,
-                                  content: Text(res.message ?? 'Only eyewitnesses on-site can vote in polls.'),
-                                ),
-                              );
-                            }
-                          } else {
-                            ScaffoldMessenger.of(context).showSnackBar(
-                              const SnackBar(
-                                backgroundColor: Color(0xFF0D652D),
-                                content: Text('Eyewitness poll vote recorded! (+15 XP)'),
-                              ),
-                            );
-                          }
-                        },
-                        onOpenComments: () {
-                          if (event != null) {
-                            CommentsSheet.show(context, event, post);
-                          }
-                        },
-                      ),
-                    ],
+                        }
+                      } else {
+                        ScaffoldMessenger.of(context).showSnackBar(
+                          const SnackBar(
+                            backgroundColor: Color(0xFF0D652D),
+                            content: Text('Eyewitness poll vote recorded! (+15 XP)'),
+                          ),
+                        );
+                      }
+                    },
+                    onOpenComments: () {
+                      if (event != null) {
+                        CommentsSheet.show(context, event, post);
+                      }
+                    },
                   );
                 },
               ),
@@ -448,14 +408,12 @@ class _HomeFeedScreenState extends State<HomeFeedScreen> {
     );
   }
 
-  /// Followed Writers & Journalists Section
-  Widget _buildFollowedWritersSection(
+  /// Followed Profiles Section (Real followed eyewitnesses & contributors)
+  Widget _buildFollowedProfilesSection(
     BuildContext context,
     AppState appState,
-    List<JournalistModel> followedWriters,
+    List<UserModel> followedProfiles,
   ) {
-    final allJournalists = appState.journalists;
-
     return Padding(
       padding: const EdgeInsets.fromLTRB(16, 8, 16, 8),
       child: Column(
@@ -464,115 +422,287 @@ class _HomeFeedScreenState extends State<HomeFeedScreen> {
           Row(
             mainAxisAlignment: MainAxisAlignment.spaceBetween,
             children: [
-              const Row(
+              Row(
                 children: [
-                  Icon(Icons.verified_user_rounded, size: 16, color: Color(0xFF15803D)),
-                  SizedBox(width: 6),
-                  Text(
-                    'Writers You Follow',
+                  Container(
+                    padding: const EdgeInsets.all(4),
+                    decoration: BoxDecoration(
+                      color: const Color(0xFFDCFCE7),
+                      borderRadius: BorderRadius.circular(6),
+                    ),
+                    child: const Icon(Icons.people_alt_rounded, size: 14, color: Color(0xFF15803D)),
+                  ),
+                  const SizedBox(width: 8),
+                  const Text(
+                    'Profiles You Follow',
                     style: TextStyle(
                       color: AppColors.textPrimary,
                       fontSize: 15,
                       fontWeight: FontWeight.w800,
+                      letterSpacing: -0.2,
                     ),
                   ),
                 ],
               ),
-              Text(
-                '${followedWriters.length} Following',
-                style: const TextStyle(
-                  color: AppColors.textSecondary,
-                  fontSize: 11.5,
-                  fontWeight: FontWeight.w600,
+              InkWell(
+                onTap: () => _showDiscoverContributorsSheet(context, appState),
+                borderRadius: BorderRadius.circular(8),
+                child: Padding(
+                  padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 2),
+                  child: Row(
+                    children: [
+                      Text(
+                        followedProfiles.isNotEmpty
+                            ? '${followedProfiles.length} Following'
+                            : '+ Follow',
+                        style: const TextStyle(
+                          color: AppColors.primaryNavy,
+                          fontSize: 11.5,
+                          fontWeight: FontWeight.w700,
+                        ),
+                      ),
+                      const SizedBox(width: 2),
+                      const Icon(Icons.arrow_forward_ios_rounded, size: 10, color: AppColors.primaryNavy),
+                    ],
+                  ),
                 ),
               ),
             ],
           ),
-          const SizedBox(height: 8),
-          SingleChildScrollView(
-            scrollDirection: Axis.horizontal,
-            child: Row(
-              children: allJournalists.map((writer) {
-                final isFilteringThisWriter = appState.homeWriterFilterId == writer.id;
+          const SizedBox(height: 10),
+          if (followedProfiles.isNotEmpty)
+            SingleChildScrollView(
+              scrollDirection: Axis.horizontal,
+              child: Row(
+                children: [
+                  ...followedProfiles.map((profile) {
+                    final isFilteringThis = appState.homeWriterFilterId == profile.id;
 
-                return Padding(
-                  padding: const EdgeInsets.only(right: 8),
-                  child: InkWell(
-                    onTap: () {
-                      if (isFilteringThisWriter) {
-                        appState.setHomeWriterFilter(null);
-                      } else {
-                        appState.setHomeWriterFilter(writer.id);
-                      }
-                    },
-                    borderRadius: BorderRadius.circular(14),
-                    child: Container(
-                      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
-                      decoration: BoxDecoration(
-                        color: isFilteringThisWriter ? const Color(0xFFD0E1FD) : Colors.white,
+                    return Padding(
+                      padding: const EdgeInsets.only(right: 8),
+                      child: InkWell(
+                        onTap: () {
+                          if (isFilteringThis) {
+                            appState.setHomeWriterFilter(null);
+                          } else {
+                            appState.setHomeWriterFilter(profile.id);
+                          }
+                        },
                         borderRadius: BorderRadius.circular(14),
-                        border: Border.all(
-                          color: isFilteringThisWriter
-                              ? AppColors.primaryNavy
-                              : (writer.isFollowed ? const Color(0xFF86EFAC) : AppColors.border),
-                          width: isFilteringThisWriter ? 1.5 : 1,
-                        ),
-                        boxShadow: [
-                          BoxShadow(
-                            color: Colors.black.withValues(alpha: 0.02),
-                            blurRadius: 4,
-                          ),
-                        ],
-                      ),
-                      child: Row(
-                        mainAxisSize: MainAxisSize.min,
-                        children: [
-                          CircleAvatar(
-                            radius: 14,
-                            backgroundImage: NetworkImage(writer.avatarUrl),
-                            onBackgroundImageError: (exception, stackTrace) {},
-                            backgroundColor: const Color(0xFFF1F5F9),
-                          ),
-                          const SizedBox(width: 8),
-                          Column(
-                            crossAxisAlignment: CrossAxisAlignment.start,
-                            mainAxisSize: MainAxisSize.min,
-                            children: [
-                              Row(
-                                children: [
-                                  Text(
-                                    writer.name.split(' ').first,
-                                    style: TextStyle(
-                                      color: isFilteringThisWriter
-                                          ? AppColors.primaryNavy
-                                          : AppColors.textPrimary,
-                                      fontSize: 11.5,
-                                      fontWeight: FontWeight.w800,
-                                    ),
-                                  ),
-                                  const SizedBox(width: 4),
-                                  if (writer.isFollowed)
-                                    const Icon(Icons.check_circle, size: 11, color: Color(0xFF15803D)),
-                                ],
-                              ),
-                              Text(
-                                '${writer.trustScore}% Trust',
-                                style: const TextStyle(
-                                  color: AppColors.textMuted,
-                                  fontSize: 9.5,
-                                  fontWeight: FontWeight.w600,
-                                ),
+                        child: Container(
+                          padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
+                          decoration: BoxDecoration(
+                            color: isFilteringThis ? const Color(0xFFD0E1FD) : Colors.white,
+                            borderRadius: BorderRadius.circular(14),
+                            border: Border.all(
+                              color: isFilteringThis
+                                  ? AppColors.primaryNavy
+                                  : const Color(0xFF86EFAC),
+                              width: isFilteringThis ? 1.5 : 1,
+                            ),
+                            boxShadow: [
+                              BoxShadow(
+                                color: Colors.black.withValues(alpha: 0.02),
+                                blurRadius: 4,
+                                offset: const Offset(0, 1),
                               ),
                             ],
+                          ),
+                          child: Row(
+                            mainAxisSize: MainAxisSize.min,
+                            children: [
+                              InkWell(
+                                onTap: () {
+                                  Navigator.of(context).push(
+                                    MaterialPageRoute(
+                                      builder: (_) => ProfileScreen(
+                                        userId: profile.id,
+                                        initialAuthorName: profile.name,
+                                        initialAuthorAvatar: profile.avatarUrl,
+                                        initialAuthorTrustScore: profile.trustScore,
+                                        isVerifiedJournalist: profile.isJournalist,
+                                      ),
+                                    ),
+                                  );
+                                },
+                                borderRadius: BorderRadius.circular(14),
+                                child: Stack(
+                                  children: [
+                                    CircleAvatar(
+                                      radius: 15,
+                                      backgroundImage: profile.avatarUrl.isNotEmpty
+                                          ? NetworkImage(profile.avatarUrl)
+                                          : null,
+                                      onBackgroundImageError: (err, stack) {},
+                                      backgroundColor: const Color(0xFF0F172A),
+                                      child: profile.avatarUrl.isEmpty
+                                          ? Text(
+                                              profile.name.isNotEmpty ? profile.name[0].toUpperCase() : 'U',
+                                              style: const TextStyle(
+                                                color: Colors.white,
+                                                fontSize: 11,
+                                                fontWeight: FontWeight.bold,
+                                              ),
+                                            )
+                                          : null,
+                                    ),
+                                    Positioned(
+                                      right: 0,
+                                      bottom: 0,
+                                      child: Container(
+                                        width: 8,
+                                        height: 8,
+                                        decoration: const BoxDecoration(
+                                          color: Color(0xFF15803D),
+                                          shape: BoxShape.circle,
+                                        ),
+                                      ),
+                                    ),
+                                  ],
+                                ),
+                              ),
+                              const SizedBox(width: 8),
+                              Column(
+                                crossAxisAlignment: CrossAxisAlignment.start,
+                                mainAxisSize: MainAxisSize.min,
+                                children: [
+                                  Row(
+                                    children: [
+                                      Text(
+                                        profile.name.split(' ').first,
+                                        style: TextStyle(
+                                          color: isFilteringThis
+                                              ? AppColors.primaryNavy
+                                              : AppColors.textPrimary,
+                                          fontSize: 12,
+                                          fontWeight: FontWeight.w800,
+                                        ),
+                                      ),
+                                      const SizedBox(width: 4),
+                                      const Icon(Icons.check_circle_rounded, size: 11, color: Color(0xFF15803D)),
+                                    ],
+                                  ),
+                                  Text(
+                                    '${profile.trustScore}% Trust',
+                                    style: const TextStyle(
+                                      color: AppColors.textSecondary,
+                                      fontSize: 9.5,
+                                      fontWeight: FontWeight.w600,
+                                    ),
+                                  ),
+                                ],
+                              ),
+                            ],
+                          ),
+                        ),
+                      ),
+                    );
+                  }),
+                  Padding(
+                    padding: const EdgeInsets.only(right: 8),
+                    child: InkWell(
+                      onTap: () => _showDiscoverContributorsSheet(context, appState),
+                      borderRadius: BorderRadius.circular(14),
+                      child: Container(
+                        padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
+                        decoration: BoxDecoration(
+                          color: const Color(0xFFF1F5F9),
+                          borderRadius: BorderRadius.circular(14),
+                          border: Border.all(color: AppColors.border),
+                        ),
+                        child: const Row(
+                          mainAxisSize: MainAxisSize.min,
+                          children: [
+                            Icon(Icons.person_add_alt_1_outlined, size: 16, color: AppColors.primaryNavy),
+                            SizedBox(width: 6),
+                            Text(
+                              'Discover',
+                              style: TextStyle(
+                                color: AppColors.primaryNavy,
+                                fontSize: 11.5,
+                                fontWeight: FontWeight.w700,
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
+                    ),
+                  ),
+                ],
+              ),
+            )
+          else
+            // Clean empty state banner when no profiles are followed yet
+            InkWell(
+              onTap: () => _showDiscoverContributorsSheet(context, appState),
+              borderRadius: BorderRadius.circular(14),
+              child: Container(
+                padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
+                decoration: BoxDecoration(
+                  color: Colors.white,
+                  borderRadius: BorderRadius.circular(14),
+                  border: Border.all(color: const Color(0xFFE2E8F0)),
+                  boxShadow: [
+                    BoxShadow(
+                      color: Colors.black.withValues(alpha: 0.02),
+                      blurRadius: 4,
+                    ),
+                  ],
+                ),
+                child: Row(
+                  children: [
+                    Container(
+                      padding: const EdgeInsets.all(8),
+                      decoration: const BoxDecoration(
+                        color: Color(0xFFEFF6FF),
+                        shape: BoxShape.circle,
+                      ),
+                      child: const Icon(Icons.person_add_rounded, size: 18, color: AppColors.primaryNavy),
+                    ),
+                    const SizedBox(width: 12),
+                    const Expanded(
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Text(
+                            'Follow Eyewitness Contributors',
+                            style: TextStyle(
+                              color: AppColors.textPrimary,
+                              fontSize: 12.5,
+                              fontWeight: FontWeight.w700,
+                            ),
+                          ),
+                          SizedBox(height: 2),
+                          Text(
+                            'Follow real authors to see their ground reports and updates here.',
+                            style: TextStyle(
+                              color: AppColors.textSecondary,
+                              fontSize: 10.5,
+                            ),
                           ),
                         ],
                       ),
                     ),
-                  ),
-                );
-              }).toList(),
+                    const SizedBox(width: 8),
+                    Container(
+                      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
+                      decoration: BoxDecoration(
+                        color: AppColors.primaryNavy,
+                        borderRadius: BorderRadius.circular(8),
+                      ),
+                      child: const Text(
+                        'Discover',
+                        style: TextStyle(
+                          color: Colors.white,
+                          fontSize: 11,
+                          fontWeight: FontWeight.w700,
+                        ),
+                      ),
+                    ),
+                  ],
+                ),
+              ),
             ),
-          ),
         ],
       ),
     );
@@ -719,8 +849,8 @@ class _HomeFeedScreenState extends State<HomeFeedScreen> {
   Widget _buildActiveFilterBanner(BuildContext context, AppState appState) {
     String label = '';
     if (appState.homeWriterFilterId != null) {
-      final writer = appState.journalists.where((j) => j.id == appState.homeWriterFilterId).firstOrNull;
-      label = 'Filtering posts by ${writer?.name ?? "selected writer"}';
+      final profile = appState.getUserProfile(appState.homeWriterFilterId!);
+      label = 'Filtering posts by ${profile.name}';
     } else if (appState.homeTagFilter != null) {
       label = 'Filtering posts under ${appState.homeTagFilter}';
     }
@@ -759,6 +889,8 @@ class _HomeFeedScreenState extends State<HomeFeedScreen> {
 
   /// Empty Feed State
   Widget _buildEmptyFeedState(BuildContext context, AppState appState) {
+    final isFollowingFilter = appState.homeFeedFilter == HomeFeedFilter.following;
+
     return Container(
       margin: const EdgeInsets.all(24),
       padding: const EdgeInsets.all(32),
@@ -769,228 +901,99 @@ class _HomeFeedScreenState extends State<HomeFeedScreen> {
       ),
       child: Column(
         children: [
-          const Icon(Icons.feed_outlined, size: 44, color: AppColors.textMuted),
+          Icon(
+            isFollowingFilter ? Icons.person_add_alt_1_rounded : Icons.feed_outlined,
+            size: 44,
+            color: isFollowingFilter ? AppColors.primaryNavy : AppColors.textMuted,
+          ),
           const SizedBox(height: 12),
-          const Text(
-            'No posts match your selected filter',
-            style: TextStyle(
+          Text(
+            isFollowingFilter
+                ? 'No updates from people you follow'
+                : 'No posts match your selected filter',
+            style: const TextStyle(
               color: AppColors.textPrimary,
               fontSize: 15,
               fontWeight: FontWeight.w800,
             ),
+            textAlign: TextAlign.center,
           ),
-          const SizedBox(height: 4),
-          const Text(
-            'Try selecting more interests or following more journalists to populate your live feed.',
-            style: TextStyle(color: AppColors.textSecondary, fontSize: 12),
+          const SizedBox(height: 6),
+          Text(
+            isFollowingFilter
+                ? 'Follow verified journalists and eyewitness contributors to curate your personal ground-truth feed.'
+                : 'Try selecting more interests or following more journalists to populate your live feed.',
+            style: const TextStyle(color: AppColors.textSecondary, fontSize: 12),
             textAlign: TextAlign.center,
           ),
           const SizedBox(height: 16),
-          ElevatedButton(
-            style: ElevatedButton.styleFrom(
-              backgroundColor: AppColors.primaryNavy,
-              foregroundColor: Colors.white,
-              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+          if (isFollowingFilter)
+            ElevatedButton.icon(
+              icon: const Icon(Icons.person_search_rounded, size: 16),
+              label: const Text('Discover People to Follow', style: TextStyle(fontWeight: FontWeight.w700)),
+              style: ElevatedButton.styleFrom(
+                backgroundColor: AppColors.primaryNavy,
+                foregroundColor: Colors.white,
+                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+                padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
+              ),
+              onPressed: () => _showDiscoverContributorsSheet(context, appState),
+            )
+          else
+            ElevatedButton(
+              style: ElevatedButton.styleFrom(
+                backgroundColor: AppColors.primaryNavy,
+                foregroundColor: Colors.white,
+                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+              ),
+              onPressed: () {
+                appState.setHomeFeedFilter(HomeFeedFilter.all);
+              },
+              child: const Text('Show All Posts', style: TextStyle(fontWeight: FontWeight.w700)),
             ),
-            onPressed: () {
-              appState.setHomeFeedFilter(HomeFeedFilter.all);
-            },
-            child: const Text('Show All Posts', style: TextStyle(fontWeight: FontWeight.w700)),
-          ),
         ],
       ),
     );
   }
 
-  /// HERO REQUIREMENT: Current location event prompt
-  Widget _buildCurrentLocationHero(BuildContext context, EventModel? activeEvent, userLoc) {
-    if (activeEvent != null) {
-      return Container(
-        margin: const EdgeInsets.fromLTRB(16, 12, 16, 0),
-        padding: const EdgeInsets.all(18),
-        decoration: BoxDecoration(
-          gradient: const LinearGradient(
-            colors: [Color(0xFF0A192F), Color(0xFF1E3A8A)],
-            begin: Alignment.topLeft,
-            end: Alignment.bottomRight,
-          ),
-          borderRadius: BorderRadius.circular(20),
-          boxShadow: [
-            BoxShadow(
-              color: const Color(0xFF1E3A8A).withValues(alpha: 0.35),
-              blurRadius: 16,
-              offset: const Offset(0, 6),
-            ),
-          ],
-        ),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Row(
-              children: [
-                Container(
-                  padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
-                  decoration: BoxDecoration(
-                    color: const Color(0xFFEF4444).withValues(alpha: 0.25),
-                    borderRadius: BorderRadius.circular(20),
-                    border: Border.all(color: const Color(0xFFEF4444), width: 1.5),
-                  ),
-                  child: Row(
-                    mainAxisSize: MainAxisSize.min,
-                    children: [
-                      Container(
-                        width: 8,
-                        height: 8,
-                        decoration: const BoxDecoration(
-                          color: Color(0xFFEF4444),
-                          shape: BoxShape.circle,
-                        ),
-                      ),
-                      const SizedBox(width: 6),
-                      const Text(
-                        'LIVE IN YOUR LOCATION',
-                        style: TextStyle(
-                          color: Color(0xFFFECACA),
-                          fontSize: 10.5,
-                          fontWeight: FontWeight.w900,
-                          letterSpacing: 0.6,
-                        ),
-                      ),
-                    ],
-                  ),
-                ),
-                const SizedBox(width: 8),
-                Container(
-                  padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-                  decoration: BoxDecoration(
-                    color: Colors.white.withValues(alpha: 0.15),
-                    borderRadius: BorderRadius.circular(16),
-                  ),
-                  child: Text(
-                    activeEvent.tagName,
-                    style: const TextStyle(
-                      color: Colors.white,
-                      fontSize: 11,
-                      fontWeight: FontWeight.w800,
-                    ),
-                  ),
-                ),
-              ],
-            ),
-            const SizedBox(height: 12),
+  /// Bottom sheet to discover real eyewitnesses and contributors to follow
+  void _showDiscoverContributorsSheet(BuildContext context, AppState appState) {
+    final currentUserId = appState.currentUser.id;
 
-            Text(
-              activeEvent.title,
-              style: const TextStyle(
-                color: Colors.white,
-                fontSize: 18,
-                fontWeight: FontWeight.w900,
-                height: 1.25,
-              ),
-            ),
-            const SizedBox(height: 8),
-
-            Container(
-              padding: const EdgeInsets.all(12),
-              decoration: BoxDecoration(
-                color: Colors.white.withValues(alpha: 0.1),
-                borderRadius: BorderRadius.circular(12),
-                border: Border.all(color: Colors.white.withValues(alpha: 0.15)),
-              ),
-              child: Row(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  const Icon(Icons.campaign_rounded, color: Color(0xFFFBBF24), size: 22),
-                  const SizedBox(width: 10),
-                  Expanded(
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        const Text(
-                          'Eyewitness Verification Needed!',
-                          style: TextStyle(
-                            color: Color(0xFFFBBF24),
-                            fontSize: 12.5,
-                            fontWeight: FontWeight.w800,
-                          ),
-                        ),
-                        const SizedBox(height: 3),
-                        Text(
-                          'There is an event happening in your location (${activeEvent.formattedRadius} radius). Please write something about what is happening around you!',
-                          style: TextStyle(
-                            color: Colors.white.withValues(alpha: 0.9),
-                            fontSize: 12,
-                            height: 1.35,
-                          ),
-                        ),
-                      ],
-                    ),
-                  ),
-                ],
-              ),
-            ),
-            const SizedBox(height: 16),
-
-            Row(
-              children: [
-                Expanded(
-                  flex: 3,
-                  child: ElevatedButton.icon(
-                    style: ElevatedButton.styleFrom(
-                      backgroundColor: const Color(0xFF22C55E),
-                      foregroundColor: Colors.black,
-                      elevation: 0,
-                      padding: const EdgeInsets.symmetric(vertical: 12),
-                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-                    ),
-                    onPressed: () {
-                      Navigator.push(
-                        context,
-                        MaterialPageRoute(
-                          builder: (context) => CreatePostScreen(event: activeEvent),
-                        ),
-                      );
-                    },
-                    icon: const Icon(Icons.edit_note_rounded, size: 20, color: Colors.black),
-                    label: const Text(
-                      'Write Post Now',
-                      style: TextStyle(fontSize: 13.5, fontWeight: FontWeight.w900),
-                    ),
-                  ),
-                ),
-                const SizedBox(width: 10),
-                Expanded(
-                  flex: 2,
-                  child: OutlinedButton(
-                    style: OutlinedButton.styleFrom(
-                      foregroundColor: Colors.white,
-                      side: const BorderSide(color: Colors.white70),
-                      padding: const EdgeInsets.symmetric(vertical: 12),
-                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-                    ),
-                    onPressed: () {
-                      Navigator.push(
-                        context,
-                        MaterialPageRoute(
-                          builder: (context) => EventDetailScreen(eventId: activeEvent.id),
-                        ),
-                      );
-                    },
-                    child: const Text(
-                      'View Tag',
-                      style: TextStyle(fontSize: 12.5, fontWeight: FontWeight.w800),
-                    ),
-                  ),
-                ),
-              ],
-            ),
-          ],
-        ),
-      );
-    } else {
-      return const SizedBox.shrink();
+    // Collect real authors from active posts first
+    final Map<String, UserModel> initialMap = {};
+    for (final post in appState.allPosts) {
+      final aId = post.authorId;
+      if (aId.isNotEmpty &&
+          aId != currentUserId &&
+          !aId.startsWith('auth_') &&
+          !aId.startsWith('seed_')) {
+        if (!initialMap.containsKey(aId)) {
+          initialMap[aId] = appState.getUserProfile(
+            aId,
+            fallbackName: post.authorName,
+            fallbackAvatar: post.authorAvatar,
+            fallbackTrustScore: post.authorTrustScore,
+            isVerifiedJournalist: post.authorIsVerifiedJournalist,
+          );
+        }
+      }
     }
+
+    showModalBottomSheet(
+      context: context,
+      isScrollControlled: true,
+      backgroundColor: Colors.transparent,
+      builder: (modalCtx) {
+        return _DiscoverContributorsModal(
+          appState: appState,
+          initialContributors: initialMap.values.toList(),
+          modalContext: modalCtx,
+        );
+      },
+    );
   }
+
 
   Widget _buildAchievementToast(BuildContext context, AppState appState) {
     final ach = appState.recentlyUnlockedAchievement;
@@ -1062,6 +1065,337 @@ class _HomeFeedScreenState extends State<HomeFeedScreen> {
           IconButton(
             icon: const Icon(Icons.close, size: 18, color: Color(0xFFB45309)),
             onPressed: () => appState.clearRecentAchievement(),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class _DiscoverContributorsModal extends StatefulWidget {
+  final AppState appState;
+  final List<UserModel> initialContributors;
+  final BuildContext modalContext;
+
+  const _DiscoverContributorsModal({
+    required this.appState,
+    required this.initialContributors,
+    required this.modalContext,
+  });
+
+  @override
+  State<_DiscoverContributorsModal> createState() => _DiscoverContributorsModalState();
+}
+
+class _DiscoverContributorsModalState extends State<_DiscoverContributorsModal> {
+  late List<UserModel> _contributors;
+  bool _isLoading = false;
+
+  @override
+  void initState() {
+    super.initState();
+    _contributors = List.from(widget.initialContributors);
+    _loadRemoteUsers();
+  }
+
+  Future<void> _loadRemoteUsers() async {
+    setState(() => _isLoading = true);
+    try {
+      final remoteUsers = await ApiService.searchUsers(
+        '',
+        token: widget.appState.authToken,
+        followerId: widget.appState.currentUser.id,
+      );
+
+      if (mounted && remoteUsers != null) {
+        final currentId = widget.appState.currentUser.id;
+        final map = <String, UserModel>{};
+
+        // Add remote registered users first
+        for (final u in remoteUsers) {
+          if (u.id != currentId && !u.id.startsWith('auth_') && !u.id.startsWith('seed_')) {
+            map[u.id] = u;
+          }
+        }
+
+        // Add any active authors from posts
+        for (final u in _contributors) {
+          if (u.id != currentId && !u.id.startsWith('auth_') && !u.id.startsWith('seed_')) {
+            map.putIfAbsent(u.id, () => u);
+          }
+        }
+
+        setState(() {
+          _contributors = map.values.toList();
+          _isLoading = false;
+        });
+      } else if (mounted) {
+        setState(() => _isLoading = false);
+      }
+    } catch (_) {
+      if (mounted) setState(() => _isLoading = false);
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      height: MediaQuery.of(context).size.height * 0.75,
+      decoration: const BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
+      ),
+      child: Column(
+        children: [
+          Center(
+            child: Container(
+              margin: const EdgeInsets.only(top: 12, bottom: 8),
+              width: 40,
+              height: 4,
+              decoration: BoxDecoration(
+                color: Colors.grey.shade300,
+                borderRadius: BorderRadius.circular(2),
+              ),
+            ),
+          ),
+          Padding(
+            padding: const EdgeInsets.fromLTRB(20, 8, 16, 12),
+            child: Row(
+              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+              children: [
+                const Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      'Discover Contributors',
+                      style: TextStyle(
+                        fontSize: 18,
+                        fontWeight: FontWeight.w800,
+                        color: AppColors.primaryNavy,
+                      ),
+                    ),
+                    SizedBox(height: 2),
+                    Text(
+                      'Follow verified eyewitnesses & ground reporters',
+                      style: TextStyle(
+                        fontSize: 12,
+                        color: AppColors.textSecondary,
+                      ),
+                    ),
+                  ],
+                ),
+                IconButton(
+                  icon: const Icon(Icons.close, color: AppColors.textSecondary),
+                  onPressed: () => Navigator.of(widget.modalContext).pop(),
+                ),
+              ],
+            ),
+          ),
+          if (_isLoading)
+            const LinearProgressIndicator(
+              minHeight: 2,
+              backgroundColor: Colors.transparent,
+              color: AppColors.primaryNavy,
+            ),
+          const Divider(height: 1),
+          Expanded(
+            child: _contributors.isEmpty && !_isLoading
+                ? const Center(
+                    child: Padding(
+                      padding: EdgeInsets.all(32),
+                      child: Column(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          Icon(Icons.people_outline_rounded, size: 48, color: AppColors.textMuted),
+                          SizedBox(height: 12),
+                          Text(
+                            'No other contributors found yet',
+                            style: TextStyle(
+                              color: AppColors.textPrimary,
+                              fontWeight: FontWeight.w700,
+                              fontSize: 15,
+                            ),
+                          ),
+                          SizedBox(height: 4),
+                          Text(
+                            'New eyewitnesses registering or posting ground reports will appear here.',
+                            textAlign: TextAlign.center,
+                            style: TextStyle(color: AppColors.textSecondary, fontSize: 12),
+                          ),
+                        ],
+                      ),
+                    ),
+                  )
+                : ListView.separated(
+                    padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+                    itemCount: _contributors.length,
+                    separatorBuilder: (context, index) => const Divider(height: 16),
+                    itemBuilder: (context, idx) {
+                      final contributor = _contributors[idx];
+                      final isFollowing = widget.appState.isFollowing(contributor.id);
+
+                      return InkWell(
+                        onTap: () {
+                          Navigator.of(widget.modalContext).pop();
+                          Navigator.of(context).push(
+                            MaterialPageRoute(
+                              builder: (_) => ProfileScreen(
+                                userId: contributor.id,
+                                initialAuthorName: contributor.name,
+                                initialAuthorAvatar: contributor.avatarUrl,
+                                initialAuthorTrustScore: contributor.trustScore,
+                                isVerifiedJournalist: contributor.isJournalist,
+                              ),
+                            ),
+                          );
+                        },
+                        borderRadius: BorderRadius.circular(12),
+                        child: Padding(
+                          padding: const EdgeInsets.symmetric(vertical: 6, horizontal: 4),
+                          child: Row(
+                            children: [
+                              Stack(
+                                children: [
+                                  CircleAvatar(
+                                    radius: 22,
+                                    backgroundImage: contributor.avatarUrl.isNotEmpty
+                                        ? NetworkImage(contributor.avatarUrl)
+                                        : null,
+                                    onBackgroundImageError: (err, stack) {},
+                                    backgroundColor: const Color(0xFF0F172A),
+                                    child: contributor.avatarUrl.isEmpty
+                                        ? Text(
+                                            contributor.name.isNotEmpty
+                                                ? contributor.name[0].toUpperCase()
+                                                : 'U',
+                                            style: const TextStyle(
+                                              color: Colors.white,
+                                              fontWeight: FontWeight.bold,
+                                              fontSize: 14,
+                                            ),
+                                          )
+                                        : null,
+                                  ),
+                                  Positioned(
+                                    right: 0,
+                                    bottom: 0,
+                                    child: Container(
+                                      padding: const EdgeInsets.all(2),
+                                      decoration: const BoxDecoration(
+                                        color: Colors.white,
+                                        shape: BoxShape.circle,
+                                      ),
+                                      child: const Icon(
+                                        Icons.check_circle,
+                                        size: 13,
+                                        color: AppColors.verifiedGreen,
+                                      ),
+                                    ),
+                                  ),
+                                ],
+                              ),
+                              const SizedBox(width: 12),
+                              Expanded(
+                                child: Column(
+                                  crossAxisAlignment: CrossAxisAlignment.start,
+                                  children: [
+                                    Text(
+                                      contributor.name,
+                                      style: const TextStyle(
+                                        fontSize: 14,
+                                        fontWeight: FontWeight.w700,
+                                        color: AppColors.textPrimary,
+                                      ),
+                                    ),
+                                    const SizedBox(height: 2),
+                                    Text(
+                                      contributor.handle.isNotEmpty
+                                          ? '${contributor.handle} • ${contributor.tier}'
+                                          : contributor.tier,
+                                      style: const TextStyle(
+                                        fontSize: 11.5,
+                                        color: AppColors.textSecondary,
+                                      ),
+                                      maxLines: 1,
+                                      overflow: TextOverflow.ellipsis,
+                                    ),
+                                    const SizedBox(height: 4),
+                                    Row(
+                                      children: [
+                                        Container(
+                                          padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                                          decoration: BoxDecoration(
+                                            color: const Color(0xFFDCFCE7),
+                                            borderRadius: BorderRadius.circular(6),
+                                          ),
+                                          child: Text(
+                                            '${contributor.trustScore}% Trust',
+                                            style: const TextStyle(
+                                              fontSize: 10,
+                                              fontWeight: FontWeight.w700,
+                                              color: Color(0xFF15803D),
+                                            ),
+                                          ),
+                                        ),
+                                        const SizedBox(width: 8),
+                                        Text(
+                                          '${contributor.followersCount} followers',
+                                          style: const TextStyle(
+                                            fontSize: 10.5,
+                                            color: AppColors.textMuted,
+                                          ),
+                                        ),
+                                      ],
+                                    ),
+                                  ],
+                                ),
+                              ),
+                              const SizedBox(width: 8),
+                              ElevatedButton(
+                                onPressed: () async {
+                                  await widget.appState.toggleFollowUser(
+                                    contributor.id,
+                                    userName: contributor.name,
+                                    userAvatar: contributor.avatarUrl,
+                                    userTrustScore: contributor.trustScore,
+                                    isJournalist: contributor.isJournalist,
+                                  );
+                                  if (mounted) setState(() {});
+                                },
+                                style: ElevatedButton.styleFrom(
+                                  backgroundColor: isFollowing
+                                      ? const Color(0xFFE2E8F0)
+                                      : AppColors.primaryNavy,
+                                  foregroundColor: isFollowing
+                                      ? AppColors.textPrimary
+                                      : Colors.white,
+                                  elevation: 0,
+                                  padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
+                                  minimumSize: Size.zero,
+                                  tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+                                  shape: RoundedRectangleBorder(
+                                    borderRadius: BorderRadius.circular(8),
+                                    side: BorderSide(
+                                      color: isFollowing
+                                          ? AppColors.border
+                                          : AppColors.primaryNavy,
+                                    ),
+                                  ),
+                                ),
+                                child: Text(
+                                  isFollowing ? 'Following' : '+ Follow',
+                                  style: const TextStyle(
+                                    fontSize: 12,
+                                    fontWeight: FontWeight.w700,
+                                  ),
+                                ),
+                              ),
+                            ],
+                          ),
+                        ),
+                      );
+                    },
+                  ),
           ),
         ],
       ),

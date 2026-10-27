@@ -3,6 +3,7 @@ import '../utils/geofence_math.dart';
 class CommentModel {
   final String id;
   final String postId;
+  final String authorId;
   final String authorName;
   final String authorAvatar;
   final int authorTrustScore;
@@ -15,6 +16,7 @@ class CommentModel {
   const CommentModel({
     required this.id,
     required this.postId,
+    this.authorId = 'anonymous_witness',
     required this.authorName,
     required this.authorAvatar,
     required this.authorTrustScore,
@@ -34,6 +36,7 @@ class CommentModel {
     return CommentModel(
       id: json['_id'] ?? json['id'] ?? 'cmt_${DateTime.now().millisecondsSinceEpoch}',
       postId: json['postId']?.toString() ?? '',
+      authorId: author['userId']?.toString() ?? author['id']?.toString() ?? 'anonymous_witness',
       authorName: author['name'] ?? 'Verified Eyewitness',
       authorAvatar: author['avatar'] ?? 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=200&auto=format&fit=crop&q=80',
       authorTrustScore: (author['trustScore'] as num?)?.toInt() ?? 90,

@@ -5,12 +5,16 @@ import '../../theme/app_colors.dart';
 class PollWidget extends StatelessWidget {
   final List<PollOption> options;
   final String? userVotedOptionId;
+  final bool isInsideGeofence;
+  final bool isOwnPost;
   final Function(String optionId) onVote;
 
   const PollWidget({
     super.key,
     required this.options,
     this.userVotedOptionId,
+    this.isInsideGeofence = true,
+    this.isOwnPost = false,
     required this.onVote,
   });
 
@@ -20,6 +24,8 @@ class PollWidget extends StatelessWidget {
   Widget build(BuildContext context) {
     final totalVotes = options.fold<int>(0, (sum, opt) => sum + opt.votes);
     final hasVoted = userVotedOptionId != null;
+    final showResults = hasVoted || isOwnPost;
+    final canVote = isInsideGeofence && !hasVoted && !isOwnPost;
 
     return Container(
       decoration: BoxDecoration(
@@ -64,25 +70,49 @@ class PollWidget extends StatelessWidget {
               Container(
                 padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
                 decoration: BoxDecoration(
-                  color: hasVoted ? const Color(0xFFDCFCE7) : const Color(0xFFEFF6FF),
+                  color: isOwnPost
+                      ? const Color(0xFFEFF6FF)
+                      : (hasVoted
+                          ? const Color(0xFFDCFCE7)
+                          : (!isInsideGeofence ? const Color(0xFFF1F5F9) : const Color(0xFFEFF6FF))),
                   borderRadius: BorderRadius.circular(10),
                   border: Border.all(
-                    color: hasVoted ? const Color(0xFF86EFAC) : const Color(0xFFBFDBFE),
+                    color: isOwnPost
+                        ? const Color(0xFFBFDBFE)
+                        : (hasVoted
+                            ? const Color(0xFF86EFAC)
+                            : (!isInsideGeofence ? const Color(0xFFCBD5E1) : const Color(0xFFBFDBFE))),
                   ),
                 ),
                 child: Row(
                   mainAxisSize: MainAxisSize.min,
                   children: [
                     Icon(
-                      hasVoted ? Icons.check_circle_rounded : Icons.location_on,
+                      isOwnPost
+                          ? Icons.person_rounded
+                          : (hasVoted
+                              ? Icons.check_circle_rounded
+                              : (!isInsideGeofence ? Icons.lock_outline_rounded : Icons.location_on)),
                       size: 11,
-                      color: hasVoted ? const Color(0xFF15803D) : const Color(0xFF1D4ED8),
+                      color: isOwnPost
+                          ? const Color(0xFF1D4ED8)
+                          : (hasVoted
+                              ? const Color(0xFF15803D)
+                              : (!isInsideGeofence ? AppColors.textMuted : const Color(0xFF1D4ED8))),
                     ),
                     const SizedBox(width: 4),
                     Text(
-                      hasVoted ? 'Voted On-Site' : 'On-Site Only',
+                      isOwnPost
+                          ? 'Your Poll'
+                          : (hasVoted
+                              ? 'Voted On-Site'
+                              : (!isInsideGeofence ? 'Outside Radius' : 'On-Site Only')),
                       style: TextStyle(
-                        color: hasVoted ? const Color(0xFF15803D) : const Color(0xFF1D4ED8),
+                        color: isOwnPost
+                            ? const Color(0xFF1D4ED8)
+                            : (hasVoted
+                                ? const Color(0xFF15803D)
+                                : (!isInsideGeofence ? AppColors.textMuted : const Color(0xFF1D4ED8))),
                         fontSize: 10,
                         fontWeight: FontWeight.w800,
                       ),
@@ -106,9 +136,15 @@ class PollWidget extends StatelessWidget {
               margin: const EdgeInsets.only(bottom: 9),
               child: Material(
                 color: Colors.transparent,
-                child: InkWell(
-                  onTap: hasVoted ? null : () => onVote(option.id),
-                  borderRadius: BorderRadius.circular(12),
+                child: Tooltip(
+                  message: !canVote && !hasVoted
+                      ? (isOwnPost
+                          ? 'Poll voting disabled for your own post'
+                          : 'Poll voting locked: Physical presence inside geofence required')
+                      : '',
+                  child: InkWell(
+                    onTap: canVote ? () => onVote(option.id) : null,
+                    borderRadius: BorderRadius.circular(12),
                   child: AnimatedContainer(
                     duration: const Duration(milliseconds: 300),
                     decoration: BoxDecoration(
@@ -116,7 +152,7 @@ class PollWidget extends StatelessWidget {
                       border: Border.all(
                         color: isSelected
                             ? const Color(0xFF15803D)
-                            : (hasVoted ? AppColors.border : const Color(0xFFCBD5E1)),
+                            : (showResults ? AppColors.border : const Color(0xFFCBD5E1)),
                         width: isSelected ? 1.8 : 1.0,
                       ),
                     ),
@@ -131,8 +167,8 @@ class PollWidget extends StatelessWidget {
                           ),
                         ),
 
-                        // Progress fill bar when voted
-                        if (hasVoted)
+                        // Progress fill bar when voted or own post
+                        if (showResults)
                           FractionallySizedBox(
                             widthFactor: percentage.clamp(0.015, 1.0),
                             child: AnimatedContainer(
@@ -161,7 +197,7 @@ class PollWidget extends StatelessWidget {
                                 decoration: BoxDecoration(
                                   color: isSelected
                                       ? const Color(0xFF15803D)
-                                      : (hasVoted ? const Color(0xFFE2E8F0) : const Color(0xFFF1F5F9)),
+                                      : (showResults ? const Color(0xFFE2E8F0) : const Color(0xFFF1F5F9)),
                                   shape: BoxShape.circle,
                                   border: Border.all(
                                     color: isSelected ? const Color(0xFF15803D) : const Color(0xFFCBD5E1),
@@ -173,7 +209,7 @@ class PollWidget extends StatelessWidget {
                                     : Text(
                                         letter,
                                         style: TextStyle(
-                                          color: hasVoted ? AppColors.textSecondary : AppColors.primaryNavy,
+                                          color: showResults ? AppColors.textSecondary : AppColors.primaryNavy,
                                           fontSize: 11,
                                           fontWeight: FontWeight.w800,
                                         ),
@@ -198,7 +234,7 @@ class PollWidget extends StatelessWidget {
                               ),
 
                               // Percentage & Vote Count
-                              if (hasVoted) ...[
+                              if (showResults) ...[
                                 const SizedBox(width: 8),
                                 Column(
                                   mainAxisAlignment: MainAxisAlignment.center,
@@ -233,8 +269,9 @@ class PollWidget extends StatelessWidget {
                   ),
                 ),
               ),
-            );
-          }),
+            ),
+          );
+        }),
 
           const SizedBox(height: 4),
 

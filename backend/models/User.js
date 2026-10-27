@@ -25,6 +25,13 @@ const UserSchema = new mongoose.Schema({
   verificationsDone: { type: Number, default: 0 },
   commentsAdded: { type: Number, default: 0 },
   tagsCreated: { type: Number, default: 0 },
+  bio: { type: String, default: '' },
+  location: { type: String, default: 'On-Site Verification Point' },
+  organization: { type: String, default: '' },
+  followers: [{ type: String }],
+  following: [{ type: String }],
+  followersCount: { type: Number, default: 0 },
+  followingCount: { type: Number, default: 0 },
 }, { timestamps: true });
 
 // Pre-save hook to hash password if modified

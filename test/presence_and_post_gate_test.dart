@@ -237,5 +237,156 @@ void main() {
       expect(find.textContaining('Cannot enter: You must be physically inside'), findsOneWidget);
       expect(find.text('Report Draft'), findsNothing);
     });
+
+    testWidgets('WriteScreen unlocks post entry for #Namleveed when user location is at event coordinates',
+        (WidgetTester tester) async {
+      tester.view.physicalSize = const Size(1080, 2400);
+      tester.view.devicePixelRatio = 1.0;
+      addTearDown(() => tester.view.resetPhysicalSize());
+
+      final appState = AppState(autoLoadRemote: false);
+      final locationService = LocationService();
+
+      // Simulate real device GPS fix at user location for #Namleveed
+      locationService.setLocationFix(
+        10.13039,
+        76.29412,
+        4.0,
+        label: 'Sandeepsadan house, Kerala',
+      );
+
+      final namleveedEvent = EventModel(
+        id: 'namleveed_tag_id',
+        title: 'Namle veed',
+        tagName: '#Namleveed',
+        description: 'Verified Ground Tag',
+        category: EventCategory.publicGathering,
+        riskLevel: RiskLevel.high,
+        status: EventStatus.live,
+        city: 'Sandeepsadan house',
+        country: 'Verified Ground',
+        center: const GeoPoint(10.13039, 76.29412, 'Sandeepsadan house'),
+        radiusMeters: 3507.0,
+        bannerImageUrl: 'https://images.unsplash.com/photo-1517457373958-b7bdd4587205',
+        startTime: DateTime.now(),
+        activeContributors: 1,
+        totalPosts: 0,
+        totalVideos: 0,
+      );
+      appState.events.add(namleveedEvent);
+
+      await tester.pumpWidget(
+        MultiProvider(
+          providers: [
+            ChangeNotifierProvider<AppState>.value(value: appState),
+            ChangeNotifierProvider<LocationService>.value(value: locationService),
+          ],
+          child: const MaterialApp(
+            home: WriteScreen(),
+          ),
+        ),
+      );
+
+      await tester.pumpAndSettle();
+
+      // Should show unlocked simplified CTA button with Write Post (no tag in CTA)
+      expect(find.text('Write Post'), findsOneWidget);
+      expect(find.text('Write Post Under #Namleveed'), findsNothing);
+      expect(find.text('View Feed'), findsNothing);
+      expect(find.text('Inside Geofence Boundary'), findsOneWidget);
+      expect(find.text('UNLOCKED'), findsOneWidget);
+
+      // Subtitle should not contain "Verified Ground"
+      expect(find.textContaining('Verified Ground'), findsNothing);
+      expect(find.textContaining('Sandeepsadan house • 1 contributor • 0 posts'), findsOneWidget);
+
+      // Tapping on the tag chip opens EventDetailScreen
+      await tester.tap(find.text('#Namleveed').last);
+      await tester.pumpAndSettle();
+      expect(find.text('#Namleveed'), findsWidgets);
+    });
+
+    testWidgets('WriteScreen sorts tags placing inside geofence tags first',
+        (WidgetTester tester) async {
+      tester.view.physicalSize = const Size(1080, 2400);
+      tester.view.devicePixelRatio = 1.0;
+      addTearDown(() => tester.view.resetPhysicalSize());
+
+      final appState = AppState(autoLoadRemote: false);
+      final locationService = LocationService();
+
+      locationService.setLocationFix(10.0, 10.0, 4.0, label: 'Test Origin');
+
+      final outsideTag = EventModel(
+        id: 'outside_tag',
+        title: 'Far Away Event',
+        tagName: '#FarAway',
+        description: 'Outside geofence tag',
+        category: EventCategory.protest,
+        riskLevel: RiskLevel.low,
+        status: EventStatus.live,
+        city: 'Far City',
+        country: 'Far Country',
+        center: const GeoPoint(10.5, 10.5, 'Far Point'),
+        radiusMeters: 1000.0,
+        bannerImageUrl: 'https://example.com/banner.jpg',
+        startTime: DateTime.now(),
+        activeContributors: 2,
+        totalPosts: 1,
+        totalVideos: 0,
+      );
+
+      final insideTag = EventModel(
+        id: 'inside_tag',
+        title: 'Inside Zone Event',
+        tagName: '#InsideZone',
+        description: 'Inside geofence tag',
+        category: EventCategory.publicGathering,
+        riskLevel: RiskLevel.low,
+        status: EventStatus.live,
+        city: 'Local City',
+        country: 'Local Country',
+        center: const GeoPoint(10.0, 10.0, 'Center Point'),
+        radiusMeters: 2000.0,
+        bannerImageUrl: 'https://example.com/banner.jpg',
+        startTime: DateTime.now(),
+        activeContributors: 5,
+        totalPosts: 3,
+        totalVideos: 1,
+      );
+
+      // Add outside tag first, then inside tag
+      appState.events.add(outsideTag);
+      appState.events.add(insideTag);
+
+      await tester.pumpWidget(
+        MultiProvider(
+          providers: [
+            ChangeNotifierProvider<AppState>.value(value: appState),
+            ChangeNotifierProvider<LocationService>.value(value: locationService),
+          ],
+          child: const MaterialApp(
+            home: WriteScreen(),
+          ),
+        ),
+      );
+
+      await tester.pumpAndSettle();
+
+      final insideFinder = find.text('#InsideZone').last;
+      final outsideFinder = find.text('#FarAway');
+      expect(insideFinder, findsOneWidget);
+      expect(outsideFinder, findsOneWidget);
+
+      // Inside tag card must appear vertically above outside tag card
+      final insideY = tester.getTopLeft(insideFinder).dy;
+      final outsideY = tester.getTopLeft(outsideFinder).dy;
+      expect(insideY, lessThan(outsideY));
+
+      // Boundary UI checks
+      expect(find.text('Inside Geofence Boundary'), findsOneWidget);
+      expect(find.text('UNLOCKED'), findsOneWidget);
+      expect(find.text('LOCKED'), findsWidgets);
+    });
   });
 }

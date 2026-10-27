@@ -22,7 +22,30 @@ class SafeImageWidget extends StatelessWidget {
   Widget build(BuildContext context) {
     Widget child;
 
-    if (urlOrData.startsWith('data:image')) {
+    if (urlOrData.startsWith('data:video')) {
+      child = Container(
+        width: width,
+        height: height,
+        color: const Color(0xFF0F172A),
+        child: const Center(
+          child: Column(
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: [
+              Icon(Icons.video_library_rounded, color: Colors.white70, size: 36),
+              SizedBox(height: 6),
+              Text(
+                'Eyewitness Video Footage',
+                style: TextStyle(
+                  color: Colors.white70,
+                  fontSize: 12,
+                  fontWeight: FontWeight.w700,
+                ),
+              ),
+            ],
+          ),
+        ),
+      );
+    } else if (urlOrData.startsWith('data:image')) {
       try {
         final commaIndex = urlOrData.indexOf(',');
         final base64Str = commaIndex != -1 ? urlOrData.substring(commaIndex + 1) : urlOrData;

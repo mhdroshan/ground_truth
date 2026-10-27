@@ -6,6 +6,7 @@ class TrustBadge extends StatefulWidget {
   final bool isGpsVerified;
   final bool isDeviceAttested;
   final bool isPulsing;
+  final String label;
   final VoidCallback? onTap;
 
   const TrustBadge({
@@ -14,6 +15,7 @@ class TrustBadge extends StatefulWidget {
     this.isGpsVerified = true,
     this.isDeviceAttested = true,
     this.isPulsing = true,
+    this.label = 'VERIFIED',
     this.onTap,
   });
 
@@ -93,9 +95,9 @@ class _TrustBadgeState extends State<TrustBadge> with SingleTickerProviderStateM
                 ),
               ),
             const SizedBox(width: 6),
-            const Text(
-              'VERIFIED ON-SITE',
-              style: TextStyle(
+            Text(
+              widget.label,
+              style: const TextStyle(
                 color: AppColors.verifiedGreen,
                 fontSize: 10.5,
                 fontWeight: FontWeight.w800,

@@ -44,7 +44,7 @@ const PostSchema = new mongoose.Schema({
       required: true,
     },
   },
-  locationDisplayName: { type: String, default: 'On-Site Verification Point' },
+  locationDisplayName: { type: String, default: 'Verified Location' },
   distanceFromEpicenterMeters: { type: Number, default: 0 },
 
   // Verification Metadata

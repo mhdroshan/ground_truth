@@ -45,7 +45,33 @@ router.get('/', async (req, res) => {
       });
     }
 
-    res.json({ success: true, count: posts.length, data: posts });
+    const reqUserId = req.query.userId || req.headers['x-user-id'] || 'user_dev_01';
+    const allTags = await Tag.find({}, '_id tagName');
+    const tagMap = new Map();
+    allTags.forEach(t => tagMap.set(t._id.toString(), t.tagName));
+
+    const formattedPosts = posts.map(p => {
+      const obj = p.toObject();
+      if (!obj.tagName && (obj.tagId || obj.eventId)) {
+        obj.tagName = tagMap.get(obj.tagId?.toString()) || tagMap.get(obj.eventId?.toString());
+      }
+      const isAuthor = obj.author && (
+        obj.author.userId === reqUserId ||
+        ((reqUserId === 'user_dev_01' || reqUserId === 'guest_user') &&
+         (obj.author.userId === 'user_dev_01' || obj.author.userId === 'guest_user'))
+      );
+      if (isAuthor) {
+        obj.userVote = 0;
+      } else if (obj.voters && Array.isArray(obj.voters)) {
+        const myVote = obj.voters.find(v => v.userId === reqUserId || (reqUserId !== 'user_dev_01' && v.userId === 'user_dev_01'));
+        obj.userVote = myVote ? myVote.direction : 0;
+      } else {
+        obj.userVote = 0;
+      }
+      return obj;
+    });
+
+    res.json({ success: true, count: formattedPosts.length, data: formattedPosts });
   } catch (err) {
     res.status(500).json({ error: 'FETCH_POSTS_FAILED', message: err.message });
   }
@@ -85,7 +111,22 @@ router.get('/:id', async (req, res) => {
     }
     const post = await Post.findById(req.params.id);
     if (!post) return res.status(404).json({ error: 'NOT_FOUND', message: 'Post not found' });
-    res.json({ success: true, data: post });
+    const reqUserId = req.query.userId || req.headers['x-user-id'] || 'user_dev_01';
+    const obj = post.toObject();
+    const isAuthor = obj.author && (
+      obj.author.userId === reqUserId ||
+      ((reqUserId === 'user_dev_01' || reqUserId === 'guest_user') &&
+       (obj.author.userId === 'user_dev_01' || obj.author.userId === 'guest_user'))
+    );
+    if (isAuthor) {
+      obj.userVote = 0;
+    } else if (obj.voters && Array.isArray(obj.voters)) {
+      const myVote = obj.voters.find(v => v.userId === reqUserId || (reqUserId !== 'user_dev_01' && v.userId === 'user_dev_01'));
+      obj.userVote = myVote ? myVote.direction : 0;
+    } else {
+      obj.userVote = 0;
+    }
+    res.json({ success: true, data: obj });
   } catch (err) {
     res.status(500).json({ error: 'FETCH_FAILED', message: err.message });
   }
@@ -158,7 +199,19 @@ router.post('/', validateGeofence, async (req, res) => {
         type: 'Point',
         coordinates: [lng, lat],
       },
-      locationDisplayName: locationDisplayName || 'On-Site Verification Point',
+      locationDisplayName: (() => {
+        const tagLoc = req.targetTag
+          ? (req.targetTag.country && !req.targetTag.city.toLowerCase().includes(req.targetTag.country.toLowerCase())
+              ? `${req.targetTag.city}, ${req.targetTag.country}`
+              : req.targetTag.city)
+          : null;
+        if (locationDisplayName &&
+            !locationDisplayName.toLowerCase().includes('physical location') &&
+            !locationDisplayName.toLowerCase().includes('verification')) {
+          return locationDisplayName;
+        }
+        return tagLoc || 'Verified Location';
+      })(),
       distanceFromEpicenterMeters: 0,
       verification: {
         isGpsVerified: true,
@@ -167,7 +220,7 @@ router.post('/', validateGeofence, async (req, res) => {
         verificationHash,
         verifiedAt: new Date(),
       },
-      upvotes: 1,
+      upvotes: 0,
     });
 
     await newPost.save();
@@ -203,6 +256,14 @@ router.post('/:id/poll-vote', validateGeofence, async (req, res) => {
     }
 
     const voterId = userId || 'user_dev_01';
+    const isAuthor = post.author && (
+      post.author.userId === voterId ||
+      ((voterId === 'user_dev_01' || voterId === 'guest_user') &&
+       (post.author.userId === 'user_dev_01' || post.author.userId === 'guest_user'))
+    );
+    if (isAuthor) {
+      return res.status(403).json({ error: 'CANNOT_VOTE_OWN_POST', message: 'You cannot participate in your own poll' });
+    }
     if (post.pollVoters && post.pollVoters.some(v => v.userId === voterId)) {
       return res.status(400).json({ error: 'ALREADY_VOTED', message: 'You have already participated in this poll' });
     }
@@ -230,24 +291,88 @@ router.post('/:id/poll-vote', validateGeofence, async (req, res) => {
   }
 });
 
-// POST /api/posts/:id/vote
-router.post('/:id/vote', async (req, res) => {
+// POST /api/posts/:id/vote - Verified upvote/downvote with geofence validation
+router.post('/:id/vote', validateGeofence, async (req, res) => {
   try {
     if (!mongoose.Types.ObjectId.isValid(req.params.id)) {
       return res.status(404).json({ error: 'NOT_FOUND', message: 'Post not found' });
     }
-    const { direction, userId } = req.body; // 1 for up, -1 for down, 0 for none
-    const post = await Post.findById(req.params.id);
+    const { direction = 0 } = req.body;
+    const userId = req.body.userId || req.headers['x-user-id'] || 'user_dev_01';
+    const post = req.parentPost || await Post.findById(req.params.id);
     if (!post) return res.status(404).json({ error: 'NOT_FOUND', message: 'Post not found' });
 
-    if (direction === 1) {
-      post.upvotes += 1;
-    } else if (direction === -1) {
-      post.downvotes += 1;
+    const isAuthor = post.author && (
+      post.author.userId === userId ||
+      ((userId === 'user_dev_01' || userId === 'guest_user') &&
+       (post.author.userId === 'user_dev_01' || post.author.userId === 'guest_user'))
+    );
+    if (isAuthor) {
+      return res.status(403).json({ error: 'CANNOT_VOTE_OWN_POST', message: 'You cannot vote on your own post' });
     }
+
+    if (!post.voters) {
+      post.voters = [];
+    }
+
+    const existingVoterIndex = post.voters.findIndex(v => v.userId === userId);
+    let prevDirection = 0;
+    if (existingVoterIndex !== -1) {
+      prevDirection = post.voters[existingVoterIndex].direction;
+    }
+
+    let finalDirection = direction;
+
+    // RULE: If the user already upvoted or downvoted this post, clicking again removes that vote.
+    // Also if direction === 0, remove that vote.
+    if (direction === prevDirection || direction === 0) {
+      // Toggle off / remove vote
+      if (prevDirection === 1) {
+        post.upvotes = Math.max(0, (post.upvotes || 0) - 1);
+      } else if (prevDirection === -1) {
+        post.downvotes = Math.max(0, (post.downvotes || 0) - 1);
+      }
+      if (existingVoterIndex !== -1) {
+        post.voters.splice(existingVoterIndex, 1);
+      }
+      finalDirection = 0;
+    } else {
+      // Revert previous vote impact if any
+      if (prevDirection === 1) {
+        post.upvotes = Math.max(0, (post.upvotes || 0) - 1);
+      } else if (prevDirection === -1) {
+        post.downvotes = Math.max(0, (post.downvotes || 0) - 1);
+      }
+
+      // Apply new direction
+      if (direction === 1) {
+        post.upvotes = (post.upvotes || 0) + 1;
+        if (existingVoterIndex !== -1) {
+          post.voters[existingVoterIndex].direction = 1;
+        } else {
+          post.voters.push({ userId, direction: 1 });
+        }
+        finalDirection = 1;
+      } else if (direction === -1) {
+        post.downvotes = (post.downvotes || 0) + 1;
+        if (existingVoterIndex !== -1) {
+          post.voters[existingVoterIndex].direction = -1;
+        } else {
+          post.voters.push({ userId, direction: -1 });
+        }
+        finalDirection = -1;
+      }
+    }
+
     await post.save();
-    res.json({ success: true, data: post });
+    console.log(`✅ Stored post vote on ${post._id} by ${userId}. Requested: ${direction}, Final: ${finalDirection}, upvotes: ${post.upvotes}, downvotes: ${post.downvotes}`);
+
+    const postObj = post.toObject();
+    postObj.userVote = finalDirection;
+
+    res.json({ success: true, data: postObj, userVote: finalDirection });
   } catch (err) {
+    console.error('Post vote error:', err);
     res.status(500).json({ error: 'VOTE_FAILED', message: err.message });
   }
 });

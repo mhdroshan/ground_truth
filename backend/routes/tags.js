@@ -174,7 +174,7 @@ router.post('/', async (req, res) => {
       riskLevel: riskLevel || 'HIGH RISK',
       status: status || 'LIVE EVENT',
       city: city || 'Metro Region',
-      country: country || 'Verified Ground',
+      country: (country && country !== 'Verified Ground') ? country : '',
       bannerImageUrl: bannerImageUrl || defaultBanners[category] || defaultBanners['Breaking News'],
       center: {
         type: 'Point',

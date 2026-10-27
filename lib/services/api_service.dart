@@ -27,16 +27,28 @@ class ApiService {
   }
 
   /// Fetch all active posts directly from the database
-  static Future<List<PostModel>?> fetchRemotePosts() async {
+  static Future<List<PostModel>?> fetchRemotePosts({String? userId}) async {
     try {
+      final queryParams = <String, String>{};
+      if (userId != null && userId.isNotEmpty) {
+        queryParams['userId'] = userId;
+      }
+      final uri = Uri.parse('$baseUrl/posts').replace(
+        queryParameters: queryParams.isNotEmpty ? queryParams : null,
+      );
       final response = await http
-          .get(Uri.parse('$baseUrl/posts'))
+          .get(
+            uri,
+            headers: {
+              if (userId != null && userId.isNotEmpty) 'x-user-id': userId,
+            },
+          )
           .timeout(const Duration(seconds: 30));
 
       if (response.statusCode == 200) {
         final body = json.decode(response.body);
         final List<dynamic> list = body['data'] ?? [];
-        return list.map((item) => PostModel.fromJson(item)).toList();
+        return list.map((item) => PostModel.fromJson(item, currentUserId: userId)).toList();
       }
     } catch (e) {
       if (kDebugMode) {
@@ -199,6 +211,7 @@ class ApiService {
           'tagId': eventId,
           'eventId': eventId,
           'title': post.title ?? 'Verified Eyewitness Report',
+          'tagName': post.tagName,
           'type': post.type.name.toUpperCase(),
           'content': post.content,
           'mediaUrl': post.mediaUrl,
@@ -278,6 +291,55 @@ class ApiService {
       }
     } catch (e) {
       if (kDebugMode) print('ApiService submitPollVote error: $e');
+    }
+    return null;
+  }
+
+  /// Submit verified upvote/downvote to database with geofence validation
+  static Future<PostModel?> submitVote({
+    required String postId,
+    required int direction,
+    required String userId,
+    required double latitude,
+    required double longitude,
+    double gpsAccuracy = 3.5,
+  }) async {
+    try {
+      final response = await http.post(
+        Uri.parse('$baseUrl/posts/$postId/vote'),
+        headers: {
+          'Content-Type': 'application/json',
+          'x-user-id': userId,
+        },
+        body: json.encode({
+          'direction': direction,
+          'userId': userId,
+          'latitude': latitude,
+          'longitude': longitude,
+          'gpsAccuracy': gpsAccuracy,
+          'mockLocationDetected': false,
+          'deviceRooted': false,
+        }),
+      ).timeout(const Duration(seconds: 20));
+
+      if (response.statusCode == 200 || response.statusCode == 201) {
+        final body = json.decode(response.body);
+        if (body['success'] == true && body['data'] != null) {
+          final updatedPost = PostModel.fromJson(body['data'], currentUserId: userId);
+          final serverVote = (body['userVote'] as num?)?.toInt() ??
+              (body['data']['userVote'] as num?)?.toInt() ??
+              direction;
+          return updatedPost.copyWith(
+            userVote: serverVote,
+          );
+        }
+      } else {
+        if (kDebugMode) {
+          print('ApiService submitVote failed: ${response.statusCode} - ${response.body}');
+        }
+      }
+    } catch (e) {
+      if (kDebugMode) print('ApiService submitVote error: $e');
     }
     return null;
   }
@@ -397,6 +459,141 @@ class ApiService {
       }
     } catch (e) {
       if (kDebugMode) print('ApiService fetchCurrentUser error: $e');
+    }
+    return null;
+  }
+
+  /// Fetch user profile by ID or handle
+  static Future<UserModel?> fetchUserProfile(
+    String userId, {
+    String? token,
+    String? followerId,
+  }) async {
+    final query = followerId != null ? '?followerId=$followerId' : '';
+    final headers = {
+      'Content-Type': 'application/json',
+      if (token != null && token.isNotEmpty) 'Authorization': 'Bearer $token',
+    };
+
+    // Try primary baseUrl, fallback to local if needed
+    final urls = [
+      '$baseUrl/users/$userId$query',
+      'http://localhost:5001/api/users/$userId$query',
+    ];
+
+    for (final url in urls) {
+      try {
+        final response = await http
+            .get(Uri.parse(url), headers: headers)
+            .timeout(const Duration(seconds: 10));
+
+        if (response.statusCode == 200) {
+          final data = json.decode(response.body);
+          if (data['success'] == true && data['user'] != null) {
+            return UserModel.fromJson(data['user']);
+          }
+        }
+      } catch (e) {
+        if (kDebugMode) print('fetchUserProfile error for $url: $e');
+      }
+    }
+    return null;
+  }
+
+  /// Toggle follow state for a user
+  static Future<Map<String, dynamic>?> toggleFollowUser({
+    required String targetUserId,
+    String? token,
+    String? followerId,
+    String? followerName,
+  }) async {
+    final bodyMap = <String, dynamic>{};
+    if (followerId != null) bodyMap['followerId'] = followerId;
+    if (followerName != null) bodyMap['followerName'] = followerName;
+    final body = json.encode(bodyMap);
+    final headers = {
+      'Content-Type': 'application/json',
+      if (token != null && token.isNotEmpty) 'Authorization': 'Bearer $token',
+    };
+
+    final urls = [
+      '$baseUrl/users/$targetUserId/follow',
+      'http://localhost:5001/api/users/$targetUserId/follow',
+    ];
+
+    for (final url in urls) {
+      try {
+        final response = await http
+            .post(Uri.parse(url), headers: headers, body: body)
+            .timeout(const Duration(seconds: 10));
+
+        if (response.statusCode == 200) {
+          return json.decode(response.body);
+        }
+      } catch (e) {
+        if (kDebugMode) print('toggleFollowUser error for $url: $e');
+      }
+    }
+    return null;
+  }
+
+  /// Fetch all posts authored by a user
+  static Future<List<PostModel>?> fetchUserPosts(String userId) async {
+    final urls = [
+      '$baseUrl/users/$userId/posts',
+      'http://localhost:5001/api/users/$userId/posts',
+    ];
+
+    for (final url in urls) {
+      try {
+        final response = await http
+            .get(Uri.parse(url))
+            .timeout(const Duration(seconds: 10));
+
+        if (response.statusCode == 200) {
+          final data = json.decode(response.body);
+          final List<dynamic> list = data['data'] ?? [];
+          return list.map((item) => PostModel.fromJson(item)).toList();
+        }
+      } catch (e) {
+        if (kDebugMode) print('fetchUserPosts error for $url: $e');
+      }
+    }
+    return null;
+  }
+
+  /// Search users by name or handle
+  static Future<List<UserModel>?> searchUsers(
+    String query, {
+    String? token,
+    String? followerId,
+  }) async {
+    final enc = Uri.encodeComponent(query.trim());
+    final followerParam = followerId != null ? '&followerId=$followerId' : '';
+    final urls = [
+      '$baseUrl/users?search=$enc$followerParam',
+      'http://localhost:5001/api/users?search=$enc$followerParam',
+    ];
+
+    for (final url in urls) {
+      try {
+        final response = await http
+            .get(
+              Uri.parse(url),
+              headers: {
+                if (token != null && token.isNotEmpty) 'Authorization': 'Bearer $token',
+              },
+            )
+            .timeout(const Duration(seconds: 10));
+
+        if (response.statusCode == 200) {
+          final data = json.decode(response.body);
+          final List<dynamic> list = data['data'] ?? [];
+          return list.map((item) => UserModel.fromJson(item)).toList();
+        }
+      } catch (e) {
+        if (kDebugMode) print('searchUsers error for $url: $e');
+      }
     }
     return null;
   }

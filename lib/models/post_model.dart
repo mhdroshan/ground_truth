@@ -150,7 +150,7 @@ class PostModel {
     this.commentsCount = 0,
   });
 
-  factory PostModel.fromJson(Map<String, dynamic> json) {
+  factory PostModel.fromJson(Map<String, dynamic> json, {String? currentUserId}) {
     final author = json['author'] as Map<String, dynamic>? ?? {};
     final coords = json['location']?['coordinates'] as List<dynamic>?;
     final double lng = coords != null && coords.isNotEmpty ? (coords[0] as num).toDouble() : 77.2185;
@@ -191,6 +191,21 @@ class PostModel {
     final id = json['_id']?.toString() ?? json['id']?.toString() ?? '';
     final eventId = json['tagId']?.toString() ?? json['eventId']?.toString() ?? id;
 
+    int parsedUserVote = (json['userVote'] as num?)?.toInt() ?? 0;
+    if (parsedUserVote == 0 && json['voters'] is List) {
+      for (final voter in json['voters']) {
+        if (voter is Map && voter['userId'] != null) {
+          final vId = voter['userId'].toString();
+          if (currentUserId != null && vId == currentUserId) {
+            parsedUserVote = (voter['direction'] as num?)?.toInt() ?? 0;
+            break;
+          } else if (vId == 'user_dev_01' || vId == 'guest_user') {
+            parsedUserVote = (voter['direction'] as num?)?.toInt() ?? 0;
+          }
+        }
+      }
+    }
+
     return PostModel(
       id: id,
       eventId: eventId,
@@ -211,12 +226,12 @@ class PostModel {
       userVotedPollOptionId: userVotedOption,
       createdAt: DateTime.tryParse(json['createdAt'] ?? '') ?? DateTime.now(),
       location: GeoPoint(lat, lng),
-      locationDisplayName: json['locationDisplayName'] ?? 'On-Site Verification Point',
+      locationDisplayName: json['locationDisplayName'] ?? 'Verified Location',
       distanceFromEpicenterMeters: (json['distanceFromEpicenterMeters'] as num?)?.toDouble() ?? 0,
       verification: VerificationDetails.fromJson(json['verification']),
       upvotes: (json['upvotes'] as num?)?.toInt() ?? 0,
       downvotes: (json['downvotes'] as num?)?.toInt() ?? 0,
-      userVote: (json['userVote'] as num?)?.toInt() ?? 0,
+      userVote: parsedUserVote,
       commentsCount: (json['commentsCount'] as num?)?.toInt() ?? 0,
     );
   }

@@ -34,6 +34,16 @@ class GeofenceMath {
     return earthRadiusMeters * c;
   }
 
+  /// Haversine distance between two GeoPoints in meters
+  static double distanceBetweenPoints(GeoPoint p1, GeoPoint p2) {
+    return distanceBetweenMeters(
+      p1.latitude,
+      p1.longitude,
+      p2.latitude,
+      p2.longitude,
+    );
+  }
+
   /// Check if a coordinate is inside a polygon using ray-casting algorithm
   static bool isPointInPolygon(GeoPoint point, List<GeoPoint> polygon) {
     if (polygon.length < 3) return false;

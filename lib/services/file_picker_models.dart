@@ -3,12 +3,14 @@ class PickedAttachment {
   final String? dataUrl; // Base64 data URL or URL
   final int sizeBytes;
   final String mimeType;
+  final String? path;
 
   const PickedAttachment({
     required this.name,
     this.dataUrl,
     required this.sizeBytes,
     required this.mimeType,
+    this.path,
   });
 
   String get formattedSize {

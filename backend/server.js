@@ -9,6 +9,7 @@ const postRoutes = require('./routes/posts');
 const commentRoutes = require('./routes/comments');
 const placesRoutes = require('./routes/places');
 const authRoutes = require('./routes/auth');
+const userRoutes = require('./routes/users');
 
 const app = express();
 const PORT = process.env.PORT || 5001;
@@ -22,6 +23,7 @@ app.use(morgan('dev'));
 
 // Core Routes
 app.use('/api/auth', authRoutes);
+app.use('/api/users', userRoutes);
 app.use('/api/tags', tagRoutes);
 app.use('/api/tags/:tagId/posts', postRoutes);
 app.use('/api/posts', postRoutes);

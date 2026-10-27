@@ -106,7 +106,7 @@ void main() {
     // Verify key sections are present
     expect(find.text('GroundTruth'), findsOneWidget);
     expect(find.text('Your Selected Interests'), findsOneWidget);
-    expect(find.text('Writers You Follow'), findsOneWidget);
+    expect(find.text('Profiles You Follow'), findsOneWidget);
     expect(find.text('Trending Tags'), findsOneWidget);
     expect(find.text('My Interests'), findsOneWidget);
 

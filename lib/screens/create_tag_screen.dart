@@ -183,6 +183,10 @@ class _CreateTagScreenState extends State<CreateTagScreen> {
     // Anchor: Use Google Place selected location, or fallback to current GPS
     final anchorPoint = _selectedLocation ?? locationService.currentLocation;
 
+    final labelParts = (anchorPoint.label ?? '').split(',').map((s) => s.trim()).where((s) => s.isNotEmpty).toList();
+    final tagCity = labelParts.isNotEmpty ? labelParts.first : 'Metro District';
+    final tagCountry = labelParts.length > 1 ? labelParts.last : '';
+
     final createdEvent = appState.createTag(
       title: rawName,
       description: _descriptionController.text.trim(),
@@ -191,8 +195,8 @@ class _CreateTagScreenState extends State<CreateTagScreen> {
       radiusValue: _radiusValue,
       radiusUnit: _selectedUnit,
       center: anchorPoint,
-      city: anchorPoint.label?.split(',').first.trim() ?? 'Metro District',
-      country: 'Verified Ground',
+      city: tagCity,
+      country: tagCountry,
       riskLevel: _selectedCategory == EventCategory.naturalDisaster || _selectedCategory == EventCategory.fire
           ? RiskLevel.critical
           : RiskLevel.high,

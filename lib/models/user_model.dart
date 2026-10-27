@@ -27,6 +27,15 @@ class UserModel {
   final int tagsCreated;
   final List<AchievementModel> achievements;
 
+  // Social & Follow stats
+  final int followersCount;
+  final int followingCount;
+  final List<String> following;
+  final String bio;
+  final String? location;
+  final String? organization;
+  final bool isFollowed;
+
   const UserModel({
     required this.id,
     required this.name,
@@ -51,6 +60,13 @@ class UserModel {
     this.commentsAdded = 9,
     this.tagsCreated = 2,
     this.achievements = const [],
+    this.followersCount = 0,
+    this.followingCount = 0,
+    this.following = const [],
+    this.bio = '',
+    this.location,
+    this.organization,
+    this.isFollowed = false,
   });
 
   int get nextLevelXp => level * 500;
@@ -87,6 +103,17 @@ class UserModel {
       verificationsDone: (json['verificationsDone'] as num?)?.toInt() ?? 0,
       commentsAdded: (json['commentsAdded'] as num?)?.toInt() ?? 0,
       tagsCreated: (json['tagsCreated'] as num?)?.toInt() ?? 0,
+      followersCount: (json['followersCount'] as num?)?.toInt() ??
+          (json['followers'] is List ? (json['followers'] as List).length : 0),
+      followingCount: (json['followingCount'] as num?)?.toInt() ??
+          (json['following'] is List ? (json['following'] as List).length : 0),
+      following: (json['following'] is List)
+          ? (json['following'] as List).map((e) => e.toString()).toList()
+          : const [],
+      bio: json['bio']?.toString() ?? '',
+      location: json['location']?.toString(),
+      organization: json['organization']?.toString(),
+      isFollowed: json['isFollowed'] == true,
     );
   }
 
@@ -112,6 +139,13 @@ class UserModel {
       'verificationsDone': verificationsDone,
       'commentsAdded': commentsAdded,
       'tagsCreated': tagsCreated,
+      'followersCount': followersCount,
+      'followingCount': followingCount,
+      'following': following,
+      'bio': bio,
+      'location': location,
+      'organization': organization,
+      'isFollowed': isFollowed,
     };
   }
 
@@ -139,6 +173,13 @@ class UserModel {
     int? commentsAdded,
     int? tagsCreated,
     List<AchievementModel>? achievements,
+    int? followersCount,
+    int? followingCount,
+    List<String>? following,
+    String? bio,
+    String? location,
+    String? organization,
+    bool? isFollowed,
   }) {
     return UserModel(
       id: id ?? this.id,
@@ -164,6 +205,13 @@ class UserModel {
       commentsAdded: commentsAdded ?? this.commentsAdded,
       tagsCreated: tagsCreated ?? this.tagsCreated,
       achievements: achievements ?? this.achievements,
+      followersCount: followersCount ?? this.followersCount,
+      followingCount: followingCount ?? this.followingCount,
+      following: following ?? this.following,
+      bio: bio ?? this.bio,
+      location: location ?? this.location,
+      organization: organization ?? this.organization,
+      isFollowed: isFollowed ?? this.isFollowed,
     );
   }
 }

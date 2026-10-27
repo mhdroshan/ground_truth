@@ -13,6 +13,7 @@ import '../widgets/post/verification_restricted_sheet.dart';
 import '../widgets/common/safe_image.dart';
 import 'comments_sheet.dart';
 import 'create_post_screen.dart';
+import 'profile_screen.dart';
 
 class EventDetailScreen extends StatefulWidget {
   final String eventId;
@@ -272,7 +273,7 @@ class _EventDetailScreenState extends State<EventDetailScreen> {
               elevation: 5,
               icon: const Icon(Icons.rate_review_rounded, color: Colors.white, size: 20),
               label: const Text(
-                'Write Verified Post',
+                'Write Post',
                 style: TextStyle(fontSize: 13.5, fontWeight: FontWeight.w800, color: Colors.white),
               ),
               onPressed: () {
@@ -320,6 +321,15 @@ class _EventDetailScreenState extends State<EventDetailScreen> {
     required AppState appState,
   }) {
     final bool isUserInside = event.isUserInside(userLoc);
+    final bool isOwnPost = appState.isCurrentUserPost(post);
+    final bool canVote = isUserInside && !isOwnPost;
+    final tagLocation = event.country.isNotEmpty && !event.city.toLowerCase().contains(event.country.toLowerCase())
+        ? '${event.city}, ${event.country}'
+        : event.city;
+    final isGeneric = post.locationDisplayName.isEmpty ||
+        post.locationDisplayName.toLowerCase().contains('physical location') ||
+        post.locationDisplayName.toLowerCase().contains('verification');
+    final displayLocation = isGeneric ? tagLocation : post.locationDisplayName;
 
     return Container(
       padding: const EdgeInsets.all(16),
@@ -338,14 +348,32 @@ class _EventDetailScreenState extends State<EventDetailScreen> {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
+
           // Author Header
           Row(
             children: [
-              CircleAvatar(
-                radius: 19,
-                backgroundColor: const Color(0xFFF1F5F9),
-                backgroundImage: NetworkImage(post.authorAvatar),
-                onBackgroundImageError: (error, stack) {},
+              InkWell(
+                onTap: () {
+                  Navigator.push(
+                    context,
+                    MaterialPageRoute(
+                      builder: (context) => ProfileScreen(
+                        userId: post.authorId,
+                        initialAuthorName: post.authorName,
+                        initialAuthorAvatar: post.authorAvatar,
+                        initialAuthorTrustScore: post.authorTrustScore,
+                        isVerifiedJournalist: post.authorIsVerifiedJournalist,
+                      ),
+                    ),
+                  );
+                },
+                borderRadius: BorderRadius.circular(19),
+                child: CircleAvatar(
+                  radius: 19,
+                  backgroundColor: const Color(0xFFF1F5F9),
+                  backgroundImage: NetworkImage(post.authorAvatar),
+                  onBackgroundImageError: (error, stack) {},
+                ),
               ),
               const SizedBox(width: 10),
               Expanded(
@@ -353,46 +381,125 @@ class _EventDetailScreenState extends State<EventDetailScreen> {
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
                     Row(
+                      crossAxisAlignment: CrossAxisAlignment.center,
                       children: [
-                        Flexible(
-                          child: Text(
-                            post.authorName,
-                            style: const TextStyle(
-                              color: AppColors.textPrimary,
-                              fontSize: 13.5,
-                              fontWeight: FontWeight.w800,
-                            ),
-                            maxLines: 1,
-                            overflow: TextOverflow.ellipsis,
-                          ),
-                        ),
-                        const SizedBox(width: 6),
-                        Container(
-                          padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
-                          decoration: BoxDecoration(
-                            color: const Color(0xFFDCFCE7),
-                            borderRadius: BorderRadius.circular(8),
-                          ),
-                          child: const Row(
+                        Expanded(
+                          child: Row(
                             mainAxisSize: MainAxisSize.min,
                             children: [
-                              Icon(Icons.check_circle, size: 10, color: Color(0xFF15803D)),
-                              SizedBox(width: 3),
-                              Text(
-                                'ON-SITE',
-                                style: TextStyle(
-                                  color: Color(0xFF15803D),
-                                  fontSize: 9.5,
-                                  fontWeight: FontWeight.w800,
+                              Flexible(
+                                child: InkWell(
+                                  onTap: () {
+                                    Navigator.push(
+                                      context,
+                                      MaterialPageRoute(
+                                        builder: (context) => ProfileScreen(
+                                          userId: post.authorId,
+                                          initialAuthorName: post.authorName,
+                                          initialAuthorAvatar: post.authorAvatar,
+                                          initialAuthorTrustScore: post.authorTrustScore,
+                                          isVerifiedJournalist: post.authorIsVerifiedJournalist,
+                                        ),
+                                      ),
+                                    );
+                                  },
+                                  child: Text(
+                                    post.authorName,
+                                    style: const TextStyle(
+                                      color: AppColors.textPrimary,
+                                      fontSize: 13.5,
+                                      fontWeight: FontWeight.w800,
+                                    ),
+                                    maxLines: 1,
+                                    overflow: TextOverflow.ellipsis,
+                                  ),
+                                ),
+                              ),
+                              const SizedBox(width: 6),
+                              Container(
+                                padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                                decoration: BoxDecoration(
+                                  color: const Color(0xFFDCFCE7),
+                                  borderRadius: BorderRadius.circular(8),
+                                ),
+                                child: const Row(
+                                  mainAxisSize: MainAxisSize.min,
+                                  children: [
+                                    Icon(Icons.check_circle, size: 10, color: Color(0xFF15803D)),
+                                    SizedBox(width: 3),
+                                    Text(
+                                      'VERIFIED',
+                                      style: TextStyle(
+                                        color: Color(0xFF15803D),
+                                        fontSize: 9.5,
+                                        fontWeight: FontWeight.w800,
+                                      ),
+                                    ),
+                                  ],
                                 ),
                               ),
                             ],
                           ),
                         ),
-                        const Spacer(),
+                        if (post.authorId != appState.currentUser.id) ...[
+                          const SizedBox(width: 8),
+                          Builder(
+                            builder: (context) {
+                              final isFollowed = appState.isFollowing(post.authorId);
+                              return InkWell(
+                                onTap: () async {
+                                  final nowFollowing = await appState.toggleFollowUser(
+                                    post.authorId,
+                                    userName: post.authorName,
+                                    userAvatar: post.authorAvatar,
+                                    userTrustScore: post.authorTrustScore,
+                                    isJournalist: post.authorIsVerifiedJournalist,
+                                  );
+                                  if (context.mounted) {
+                                    ScaffoldMessenger.of(context).showSnackBar(
+                                      SnackBar(
+                                        content: Text(
+                                          nowFollowing
+                                              ? 'Following ${post.authorName}'
+                                              : 'Unfollowed ${post.authorName}',
+                                        ),
+                                        duration: const Duration(seconds: 2),
+                                        behavior: SnackBarBehavior.floating,
+                                      ),
+                                    );
+                                  }
+                                },
+                                borderRadius: BorderRadius.circular(12),
+                                child: Container(
+                                  padding: const EdgeInsets.symmetric(horizontal: 7, vertical: 2.5),
+                                  decoration: BoxDecoration(
+                                    color: isFollowed ? const Color(0xFFDCFCE7) : const Color(0xFFEFF6FF),
+                                    borderRadius: BorderRadius.circular(10),
+                                    border: Border.all(
+                                      color: isFollowed ? const Color(0xFF86EFAC) : const Color(0xFFBFDBFE),
+                                    ),
+                                  ),
+                                  child: Text(
+                                    isFollowed ? 'Following' : '+ Follow',
+                                    style: TextStyle(
+                                      color: isFollowed ? const Color(0xFF15803D) : AppColors.primaryNavy,
+                                      fontSize: 10,
+                                      fontWeight: FontWeight.w700,
+                                    ),
+                                  ),
+                                ),
+                              );
+                            },
+                          ),
+                        ],
+                        const SizedBox(width: 8),
                         Text(
                           _formatTimeAgo(post.createdAt),
-                          style: const TextStyle(color: AppColors.textMuted, fontSize: 11),
+                          style: const TextStyle(
+                            color: AppColors.textMuted,
+                            fontSize: 11,
+                            fontWeight: FontWeight.w500,
+                          ),
                         ),
                       ],
                     ),
@@ -401,14 +508,13 @@ class _EventDetailScreenState extends State<EventDetailScreen> {
                       children: [
                         const Icon(Icons.location_on, size: 11, color: AppColors.textMuted),
                         const SizedBox(width: 2),
-                        Text(
-                          post.locationDisplayName,
-                          style: const TextStyle(color: AppColors.textSecondary, fontSize: 11),
-                        ),
-                        const SizedBox(width: 8),
-                        Text(
-                          'Trust: ${post.authorTrustScore}%',
-                          style: const TextStyle(color: AppColors.primaryNavy, fontSize: 11, fontWeight: FontWeight.w700),
+                        Flexible(
+                          child: Text(
+                            displayLocation,
+                            style: const TextStyle(color: AppColors.textSecondary, fontSize: 11),
+                            maxLines: 1,
+                            overflow: TextOverflow.ellipsis,
+                          ),
                         ),
                       ],
                     ),
@@ -476,7 +582,18 @@ class _EventDetailScreenState extends State<EventDetailScreen> {
             PollWidget(
               options: post.pollOptions!,
               userVotedOptionId: post.userVotedPollOptionId,
+              isInsideGeofence: isUserInside,
+              isOwnPost: isOwnPost,
               onVote: (optId) {
+                if (isOwnPost) {
+                  ScaffoldMessenger.of(context).showSnackBar(
+                    const SnackBar(
+                      backgroundColor: AppColors.alertRed,
+                      content: Text('You cannot participate in your own poll.'),
+                    ),
+                  );
+                  return;
+                }
                 if (!isUserInside) {
                   VerificationRestrictedSheet.show(
                     context,
@@ -519,115 +636,200 @@ class _EventDetailScreenState extends State<EventDetailScreen> {
               // Like / Dislike Container
               Container(
                 decoration: BoxDecoration(
-                  color: const Color(0xFFF1F5F9),
+                  color: canVote
+                      ? const Color(0xFFF1F5F9)
+                      : const Color(0xFFF8FAFC),
                   borderRadius: BorderRadius.circular(20),
-                  border: Border.all(color: AppColors.border),
+                  border: Border.all(
+                    color: canVote ? AppColors.border : const Color(0xFFE2E8F0),
+                  ),
                 ),
                 child: Row(
                   children: [
                     // LIKE (Verify True)
-                    InkWell(
-                      onTap: () {
-                        final res = appState.votePost(
-                          eventId: event.id,
-                          postId: post.id,
-                          direction: 1,
-                          userLocation: userLoc,
-                        );
-                        if (!res.allowed) {
-                          VerificationRestrictedSheet.show(
-                            context,
-                            event: event,
-                            distanceMeters: res.distanceMeters ?? event.distanceFromUser(userLoc),
-                            onOpenComments: () => CommentsSheet.show(context, event, post),
-                          );
-                        } else {
-                          ScaffoldMessenger.of(context).showSnackBar(
-                            const SnackBar(
-                              duration: Duration(seconds: 2),
-                              backgroundColor: Color(0xFF0D652D),
-                              content: Text('News verified on-site! +20 XP awarded.'),
-                            ),
-                          );
-                        }
-                      },
-                      borderRadius: const BorderRadius.horizontal(left: Radius.circular(20)),
-                      child: Padding(
-                        padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
-                        child: Row(
-                          children: [
-                            Icon(
-                              post.userVote == 1 ? Icons.thumb_up_rounded : Icons.thumb_up_alt_outlined,
-                              size: 15,
-                              color: post.userVote == 1 ? const Color(0xFF15803D) : AppColors.textSecondary,
-                            ),
-                            const SizedBox(width: 4),
-                            Text(
-                              '${post.upvotes}',
-                              style: TextStyle(
-                                color: post.userVote == 1 ? const Color(0xFF15803D) : AppColors.textPrimary,
-                                fontSize: 12,
-                                fontWeight: FontWeight.w800,
+                    Tooltip(
+                      message: isOwnPost
+                          ? 'Voting disabled for your own post'
+                          : (canVote
+                              ? (post.userVote == 1 ? 'Remove verification' : 'Verify true (+20 XP)')
+                              : 'Voting disabled: Outside ${event.tagName} geofence radius'),
+                      child: InkWell(
+                        onTap: canVote
+                            ? () {
+                                final res = appState.votePost(
+                                  eventId: event.id,
+                                  postId: post.id,
+                                  direction: 1,
+                                  userLocation: userLoc,
+                                );
+                                if (!res.allowed) {
+                                  ScaffoldMessenger.of(context).showSnackBar(
+                                    SnackBar(
+                                      backgroundColor: AppColors.alertRed,
+                                      content: Text(res.message ?? 'Action restricted by physical geofence.'),
+                                    ),
+                                  );
+                                } else {
+                                  ScaffoldMessenger.of(context).showSnackBar(
+                                    SnackBar(
+                                      duration: const Duration(seconds: 2),
+                                      backgroundColor: res.isRemoved
+                                          ? AppColors.primaryNavy
+                                          : const Color(0xFF0D652D),
+                                      content: Text(
+                                        res.isRemoved
+                                            ? 'Verification vote removed.'
+                                            : 'News verified! +20 XP awarded.',
+                                      ),
+                                    ),
+                                  );
+                                }
+                              }
+                            : null,
+                        borderRadius: const BorderRadius.horizontal(left: Radius.circular(20)),
+                        child: Padding(
+                          padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+                          child: Row(
+                            children: [
+                              Icon(
+                                post.userVote == 1 ? Icons.thumb_up_rounded : Icons.thumb_up_alt_outlined,
+                                size: 15,
+                                color: !canVote
+                                    ? AppColors.textMuted
+                                    : (post.userVote == 1 ? const Color(0xFF15803D) : AppColors.textSecondary),
                               ),
-                            ),
-                          ],
+                              const SizedBox(width: 4),
+                              Text(
+                                '${post.upvotes}',
+                                style: TextStyle(
+                                  color: !canVote
+                                      ? AppColors.textMuted
+                                      : (post.userVote == 1 ? const Color(0xFF15803D) : AppColors.textPrimary),
+                                  fontSize: 12,
+                                  fontWeight: FontWeight.w800,
+                                ),
+                              ),
+                            ],
+                          ),
                         ),
                       ),
                     ),
-                    Container(width: 1, height: 16, color: AppColors.border),
+                    Container(
+                      width: 1,
+                      height: 16,
+                      color: isUserInside ? AppColors.border : const Color(0xFFE2E8F0),
+                    ),
 
                     // DISLIKE (Dispute False)
-                    InkWell(
-                      onTap: () {
-                        final res = appState.votePost(
-                          eventId: event.id,
-                          postId: post.id,
-                          direction: -1,
-                          userLocation: userLoc,
-                        );
-                        if (!res.allowed) {
-                          VerificationRestrictedSheet.show(
-                            context,
-                            event: event,
-                            distanceMeters: res.distanceMeters ?? event.distanceFromUser(userLoc),
-                            onOpenComments: () => CommentsSheet.show(context, event, post),
-                          );
-                        } else {
-                          ScaffoldMessenger.of(context).showSnackBar(
-                            const SnackBar(
-                              duration: Duration(seconds: 2),
-                              backgroundColor: Color(0xFF991B1B),
-                              content: Text('Dispute recorded from on-site position. +20 XP awarded.'),
-                            ),
-                          );
-                        }
-                      },
-                      borderRadius: const BorderRadius.horizontal(right: Radius.circular(20)),
-                      child: Padding(
-                        padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
-                        child: Row(
-                          children: [
-                            Icon(
-                              post.userVote == -1 ? Icons.thumb_down_rounded : Icons.thumb_down_alt_outlined,
-                              size: 15,
-                              color: post.userVote == -1 ? const Color(0xFFDC2626) : AppColors.textSecondary,
-                            ),
-                            const SizedBox(width: 4),
-                            Text(
-                              '${post.downvotes}',
-                              style: TextStyle(
-                                color: post.userVote == -1 ? const Color(0xFFDC2626) : AppColors.textSecondary,
-                                fontSize: 12,
-                                fontWeight: FontWeight.w800,
+                    Tooltip(
+                      message: isOwnPost
+                          ? 'Voting disabled for your own post'
+                          : (canVote
+                              ? (post.userVote == -1 ? 'Remove dispute' : 'Dispute false (+20 XP)')
+                              : 'Voting disabled: Outside ${event.tagName} geofence radius'),
+                      child: InkWell(
+                        onTap: canVote
+                            ? () {
+                                final res = appState.votePost(
+                                  eventId: event.id,
+                                  postId: post.id,
+                                  direction: -1,
+                                  userLocation: userLoc,
+                                );
+                                if (!res.allowed) {
+                                  ScaffoldMessenger.of(context).showSnackBar(
+                                    SnackBar(
+                                      backgroundColor: AppColors.alertRed,
+                                      content: Text(res.message ?? 'Action restricted by physical geofence.'),
+                                    ),
+                                  );
+                                } else {
+                                  ScaffoldMessenger.of(context).showSnackBar(
+                                    SnackBar(
+                                      duration: const Duration(seconds: 2),
+                                      backgroundColor: res.isRemoved
+                                          ? AppColors.primaryNavy
+                                          : const Color(0xFF991B1B),
+                                      content: Text(
+                                        res.isRemoved
+                                            ? 'Dispute vote removed.'
+                                            : 'Dispute recorded from on-site position. +20 XP awarded.',
+                                      ),
+                                    ),
+                                  );
+                                }
+                              }
+                            : null,
+                        borderRadius: const BorderRadius.horizontal(right: Radius.circular(20)),
+                        child: Padding(
+                          padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+                          child: Row(
+                            children: [
+                              Icon(
+                                post.userVote == -1 ? Icons.thumb_down_rounded : Icons.thumb_down_alt_outlined,
+                                size: 15,
+                                color: !canVote
+                                    ? AppColors.textMuted
+                                    : (post.userVote == -1 ? const Color(0xFFDC2626) : AppColors.textSecondary),
                               ),
-                            ),
-                          ],
+                              const SizedBox(width: 4),
+                              Text(
+                                '${post.downvotes}',
+                                style: TextStyle(
+                                  color: !canVote
+                                      ? AppColors.textMuted
+                                      : (post.userVote == -1 ? const Color(0xFFDC2626) : AppColors.textSecondary),
+                                  fontSize: 12,
+                                  fontWeight: FontWeight.w800,
+                                ),
+                              ),
+                            ],
+                          ),
                         ),
                       ),
                     ),
                   ],
                 ),
               ),
+
+              // Indicator badge if disabled
+              if (!canVote) ...[
+                const SizedBox(width: 6),
+                Tooltip(
+                  message: isOwnPost
+                      ? 'Authors cannot verify or dispute their own reports'
+                      : 'Only eyewitnesses inside ${event.tagName} (${event.formattedRadius}) can vote',
+                  child: Container(
+                    padding: const EdgeInsets.symmetric(horizontal: 7, vertical: 4),
+                    decoration: BoxDecoration(
+                      color: isOwnPost ? const Color(0xFFEFF6FF) : const Color(0xFFF1F5F9),
+                      borderRadius: BorderRadius.circular(12),
+                      border: Border.all(
+                        color: isOwnPost ? const Color(0xFFBFDBFE) : const Color(0xFFE2E8F0),
+                      ),
+                    ),
+                    child: Row(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        Icon(
+                          isOwnPost ? Icons.person_rounded : Icons.lock_outline_rounded,
+                          size: 11,
+                          color: isOwnPost ? const Color(0xFF1D4ED8) : AppColors.textMuted,
+                        ),
+                        const SizedBox(width: 3),
+                        Text(
+                          isOwnPost ? 'Your Post' : 'Outside Radius',
+                          style: TextStyle(
+                            fontSize: 10,
+                            color: isOwnPost ? const Color(0xFF1D4ED8) : AppColors.textMuted,
+                            fontWeight: FontWeight.w700,
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                ),
+              ],
               const SizedBox(width: 10),
 
               // COMMENTS BUTTON (OPEN TO ALL USERS FROM ANYWHERE)

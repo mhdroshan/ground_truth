@@ -114,11 +114,12 @@ class LocationService extends ChangeNotifier {
   }
 
   /// Refreshes the physical device GPS location
-  void refreshPhysicalLocation() {
+  Future<void> refreshPhysicalLocation() async {
     _isLocating = true;
+    _locationStatus = 'Acquiring GPS fix...';
     notifyListeners();
 
-    requestPhysicalLocation(
+    await requestPhysicalLocation(
       onSuccess: (lat, lng, accuracy) {
         _currentLocation = GeoPoint(lat, lng, 'Current Physical Location');
         _gpsAccuracyMeters = accuracy;

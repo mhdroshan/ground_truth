@@ -247,6 +247,24 @@ class EventModel {
       ? '${radiusMiles.toStringAsFixed(radiusMiles < 10 ? 1 : 0)} mi'
       : '${radiusKm.toStringAsFixed(radiusKm < 10 ? 1 : 0)} km';
 
+  String get cleanLocation {
+    String cleanCity = city.replaceAll(RegExp(r',?\s*verified ground\s*', caseSensitive: false), '').trim();
+    if (cleanCity.endsWith(',')) {
+      cleanCity = cleanCity.substring(0, cleanCity.length - 1).trim();
+    }
+    String cleanCountry = country.replaceAll(RegExp(r',?\s*verified ground\s*', caseSensitive: false), '').trim();
+    if (cleanCountry.endsWith(',')) {
+      cleanCountry = cleanCountry.substring(0, cleanCountry.length - 1).trim();
+    }
+    final isVGround = cleanCountry.toLowerCase() == 'verified ground' || cleanCountry.toLowerCase() == 'live';
+
+    if (cleanCountry.isNotEmpty && !isVGround && !cleanCity.toLowerCase().contains(cleanCountry.toLowerCase())) {
+      if (cleanCity.isEmpty) return cleanCountry;
+      return '$cleanCity, $cleanCountry';
+    }
+    return cleanCity.isNotEmpty ? cleanCity : (isVGround ? '' : cleanCountry);
+  }
+
   bool isUserInside(GeoPoint userLocation) {
     if (polygonVertices.isNotEmpty && polygonVertices.length >= 3) {
       return GeofenceMath.isPointInPolygon(userLocation, polygonVertices) ||

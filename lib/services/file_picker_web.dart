@@ -3,11 +3,17 @@ import 'dart:js_interop';
 import 'package:web/web.dart' as web;
 import 'file_picker_models.dart';
 
-Future<PickedAttachment?> pickFilePlatform({String accept = '*/*'}) {
+Future<PickedAttachment?> pickFilePlatform({
+  String accept = '*/*',
+  bool fromCamera = false,
+}) {
   final completer = Completer<PickedAttachment?>();
   final input = web.document.createElement('input') as web.HTMLInputElement;
   input.type = 'file';
   input.accept = accept;
+  if (fromCamera) {
+    input.capture = 'environment';
+  }
 
   input.onchange = ((web.Event _) {
     final files = input.files;

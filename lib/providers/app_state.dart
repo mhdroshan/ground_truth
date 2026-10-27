@@ -22,12 +22,16 @@ class VoteResult {
   final String? message;
   final double? distanceMeters;
   final EventModel? event;
+  final int userVote;
+  final bool isRemoved;
 
   const VoteResult({
     required this.allowed,
     this.message,
     this.distanceMeters,
     this.event,
+    this.userVote = 0,
+    this.isRemoved = false,
   });
 
   static const success = VoteResult(allowed: true);
@@ -58,6 +62,21 @@ class AppState extends ChangeNotifier {
   static const String _prefKeyIsLoggedIn = 'groundtruth_is_logged_in';
   static const String _prefKeyAuthToken = 'groundtruth_auth_token';
   static const String _prefKeyUserData = 'groundtruth_user_data';
+  static const String _prefKeyFollowedUserIds = 'groundtruth_followed_user_ids';
+  static const String _prefKeyUserPostVotes = 'groundtruth_user_post_votes';
+
+  // Local user post votes: postId -> direction (1 or -1)
+  final Map<String, int> _userVotesByPostId = {};
+  int getUserVote(String postId) => _userVotesByPostId[postId] ?? 0;
+
+  // Followed User IDs (Persisted real followed profiles)
+  final Set<String> _followedUserIds = {};
+
+  Set<String> get followedUserIds => Set.unmodifiable(_followedUserIds);
+  bool isFollowing(String userId) => _followedUserIds.contains(userId);
+
+  // Cached User Profiles
+  final Map<String, UserModel> _cachedUserProfiles = {};
 
   // Authentication & Session State
   bool _isLoggedIn = false;
@@ -158,6 +177,37 @@ class AppState extends ChangeNotifier {
           _refreshSessionFromBackend(token);
         }
       }
+
+      // Restore followed users list (filter out legacy dummy seed IDs)
+      final savedFollowed = prefs.getStringList(_prefKeyFollowedUserIds);
+      if (savedFollowed != null) {
+        _followedUserIds.clear();
+        final cleanFollowed = savedFollowed.where((id) => !id.startsWith('auth_') && !id.startsWith('seed_')).toList();
+        _followedUserIds.addAll(cleanFollowed);
+        await prefs.setStringList(_prefKeyFollowedUserIds, cleanFollowed);
+      }
+
+      // Merge user's following list from account if logged in
+      if (_currentUser.following.isNotEmpty) {
+        _followedUserIds.addAll(_currentUser.following);
+      }
+      for (final id in _followedUserIds) {
+        getUserProfile(id);
+      }
+      notifyListeners();
+
+      // Restore user post votes
+      final savedVotesStr = prefs.getString(_prefKeyUserPostVotes);
+      if (savedVotesStr != null && savedVotesStr.isNotEmpty) {
+        try {
+          final decoded = json.decode(savedVotesStr) as Map<String, dynamic>;
+          _userVotesByPostId.clear();
+          decoded.forEach((key, val) {
+            if (val is num) _userVotesByPostId[key] = val.toInt();
+          });
+          _applyUserVotesToLoadedPosts();
+        } catch (_) {}
+      }
     } catch (e) {
       if (kDebugMode) print('Failed to restore auth session: $e');
     }
@@ -168,6 +218,13 @@ class AppState extends ChangeNotifier {
       final remoteUser = await ApiService.fetchCurrentUser(token);
       if (remoteUser != null && !_disposed) {
         _currentUser = remoteUser.copyWith(achievements: _currentUser.achievements);
+        if (_currentUser.following.isNotEmpty) {
+          _followedUserIds.addAll(_currentUser.following);
+          for (final fId in _currentUser.following) {
+            getUserProfile(fId);
+          }
+          await _saveFollowedUserIds();
+        }
         _syncAchievements();
         await _savePersistedSession();
         notifyListeners();
@@ -225,6 +282,13 @@ class AppState extends ChangeNotifier {
         _currentUser = res.user!.copyWith(achievements: existingAchievements);
         _authToken = res.token;
         _isLoggedIn = true;
+        if (_currentUser.following.isNotEmpty) {
+          _followedUserIds.addAll(_currentUser.following);
+          for (final fId in _currentUser.following) {
+            getUserProfile(fId);
+          }
+          await _saveFollowedUserIds();
+        }
         _syncAchievements();
         await _savePersistedSession();
         _authSuccessMessage = res.message ?? 'Welcome back, ${_currentUser.name}';
@@ -526,19 +590,264 @@ class AppState extends ChangeNotifier {
     return journalists.where((j) => j.isFollowed).toList();
   }
 
-  void toggleFollowJournalist(String id) {
-    final list = journalists;
-    final idx = list.indexWhere((j) => j.id == id);
-    if (idx != -1) {
-      final current = list[idx];
-      final newFollowState = !current.isFollowed;
-      list[idx] = current.copyWith(
-        isFollowed: newFollowState,
-        followersCount: current.followersCount + (newFollowState ? 1 : -1),
-      );
-      _journalists = list;
-      notifyListeners();
+  void _syncJournalistFollowStates() {
+    final list = List<JournalistModel>.from(journalists);
+    for (int i = 0; i < list.length; i++) {
+      final isFollowed = _followedUserIds.contains(list[i].id);
+      if (list[i].isFollowed != isFollowed) {
+        list[i] = list[i].copyWith(isFollowed: isFollowed);
+      }
     }
+    _journalists = list;
+  }
+
+  Future<void> _saveFollowedUserIds() async {
+    _syncJournalistFollowStates();
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      await prefs.setStringList(_prefKeyFollowedUserIds, _followedUserIds.toList());
+    } catch (e) {
+      if (kDebugMode) print('Failed to save followed users: $e');
+    }
+  }
+
+  Future<void> _saveUserVotes() async {
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      await prefs.setString(_prefKeyUserPostVotes, json.encode(_userVotesByPostId));
+    } catch (e) {
+      if (kDebugMode) print('Failed to save user votes: $e');
+    }
+  }
+
+  void _applyUserVotesToLoadedPosts() {
+    for (final entry in _postsByEvent.entries) {
+      for (int i = 0; i < entry.value.length; i++) {
+        final p = entry.value[i];
+        if (isCurrentUserPost(p)) {
+          _userVotesByPostId.remove(p.id);
+          if (p.userVote != 0) {
+            entry.value[i] = p.copyWith(userVote: 0);
+          }
+        } else if (_userVotesByPostId.containsKey(p.id)) {
+          final recordedVote = _userVotesByPostId[p.id]!;
+          if (p.userVote != recordedVote) {
+            entry.value[i] = p.copyWith(userVote: recordedVote);
+          }
+        }
+      }
+    }
+  }
+
+  void toggleFollowJournalist(String id) {
+    toggleFollowUser(id);
+  }
+
+  /// Toggle follow state for any eyewitness contributor or journalist
+  Future<bool> toggleFollowUser(
+    String userId, {
+    String? userName,
+    String? userAvatar,
+    int? userTrustScore,
+    bool? isJournalist,
+  }) async {
+    if (userId == _currentUser.id) return false;
+
+    final wasFollowing = _followedUserIds.contains(userId);
+    final nowFollowing = !wasFollowing;
+
+    if (nowFollowing) {
+      _followedUserIds.add(userId);
+    } else {
+      _followedUserIds.remove(userId);
+    }
+
+    // Update journalists list if applicable
+    final jList = List<JournalistModel>.from(journalists);
+    final jIdx = jList.indexWhere((j) => j.id == userId);
+    if (jIdx != -1) {
+      final currentJ = jList[jIdx];
+      jList[jIdx] = currentJ.copyWith(
+        isFollowed: nowFollowing,
+        followersCount: (currentJ.followersCount + (nowFollowing ? 1 : -1)).clamp(0, 9999999),
+      );
+      _journalists = jList;
+    }
+
+    // Update cached user profile if present
+    if (_cachedUserProfiles.containsKey(userId)) {
+      final currentProfile = _cachedUserProfiles[userId]!;
+      _cachedUserProfiles[userId] = currentProfile.copyWith(
+        isFollowed: nowFollowing,
+        followersCount: (currentProfile.followersCount + (nowFollowing ? 1 : -1)).clamp(0, 9999999),
+      );
+    }
+
+    // Update currentUser following count and list
+    final updatedFollowingCount = (_currentUser.followingCount + (nowFollowing ? 1 : -1)).clamp(0, 999999);
+    final updatedFollowing = List<String>.from(_currentUser.following);
+    if (nowFollowing) {
+      if (!updatedFollowing.contains(userId)) updatedFollowing.add(userId);
+      getUserProfile(userId, fallbackName: userName, fallbackAvatar: userAvatar, fallbackTrustScore: userTrustScore);
+    } else {
+      updatedFollowing.remove(userId);
+    }
+    _currentUser = _currentUser.copyWith(
+      followingCount: updatedFollowingCount,
+      following: updatedFollowing,
+    );
+
+    await _saveFollowedUserIds();
+    notifyListeners();
+
+    // Fire-and-forget backend follow toggle
+    try {
+      ApiService.toggleFollowUser(
+        targetUserId: userId,
+        token: _authToken,
+        followerId: _currentUser.id,
+        followerName: _currentUser.name,
+      ).then((res) {
+        if (res != null && res['followersCount'] != null && _cachedUserProfiles.containsKey(userId)) {
+          final count = (res['followersCount'] as num).toInt();
+          _cachedUserProfiles[userId] = _cachedUserProfiles[userId]!.copyWith(followersCount: count);
+          notifyListeners();
+        }
+      });
+    } catch (_) {}
+
+    return nowFollowing;
+  }
+
+  /// Retrieve or synthesize a rich UserModel for any contributor
+  UserModel getUserProfile(
+    String userId, {
+    String? fallbackName,
+    String? fallbackAvatar,
+    int? fallbackTrustScore,
+    bool? isVerifiedJournalist,
+    String? fallbackBio,
+    String? fallbackLocation,
+    String? fallbackOrganization,
+  }) {
+    if (userId == _currentUser.id) {
+      return _currentUser;
+    }
+
+    // Check cached profile
+    if (_cachedUserProfiles.containsKey(userId)) {
+      return _cachedUserProfiles[userId]!.copyWith(
+        isFollowed: isFollowing(userId),
+      );
+    }
+
+    // Check seed journalists
+    final jMatch = journalists.where((j) => j.id == userId).firstOrNull;
+    if (jMatch != null) {
+      final profile = UserModel(
+        id: jMatch.id,
+        name: jMatch.name,
+        email: '${jMatch.handle.replaceFirst('@', '')}@groundtruth.org',
+        handle: jMatch.handle,
+        avatarUrl: jMatch.avatarUrl,
+        trustScore: jMatch.trustScore,
+        verifiedContributions: jMatch.verifiedReportsCount,
+        accuracyRating: 98.8,
+        helpfulVotes: jMatch.followersCount ~/ 10,
+        tier: jMatch.title,
+        deviceModel: 'Pixel 9 Pro (Hardware Keystore Attested)',
+        hasAttestationKey: true,
+        role: 'journalist',
+        xp: 2800,
+        level: 6,
+        levelTitle: 'Lead Field Reporter',
+        postsCreated: allPosts.where((p) => p.authorId == jMatch.id).length,
+        verificationsDone: 180,
+        commentsAdded: 64,
+        tagsCreated: 5,
+        followersCount: jMatch.followersCount,
+        followingCount: 34,
+        bio: jMatch.bio,
+        location: jMatch.location,
+        organization: jMatch.organization,
+        isFollowed: isFollowing(userId),
+      );
+      _cachedUserProfiles[userId] = profile;
+      return profile;
+    }
+
+    // Check existing posts for author info
+    final authorPost = allPosts.where((p) => p.authorId == userId).firstOrNull;
+    final name = fallbackName ?? authorPost?.authorName ?? 'Verified Eyewitness';
+    final avatar = fallbackAvatar ?? authorPost?.authorAvatar ?? 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=200&auto=format&fit=crop&q=80';
+    final trust = fallbackTrustScore ?? authorPost?.authorTrustScore ?? 90;
+    final isJ = isVerifiedJournalist ?? authorPost?.authorIsVerifiedJournalist ?? false;
+    final handle = '@${name.toLowerCase().replaceAll(RegExp(r'\s+'), '_')}';
+    final authorPostsCount = allPosts.where((p) => p.authorId == userId).length;
+
+    final synthesizedUser = UserModel(
+      id: userId,
+      name: name,
+      email: '',
+      handle: handle,
+      avatarUrl: avatar,
+      trustScore: trust,
+      verifiedContributions: authorPostsCount,
+      accuracyRating: 98.4,
+      helpfulVotes: 32,
+      tier: isJ ? 'Verified Field Reporter' : 'Tier 1 Verified Senior Eyewitness',
+      deviceModel: 'Hardware Keystore Attested',
+      hasAttestationKey: true,
+      role: isJ ? 'journalist' : 'eyewitness',
+      xp: 600,
+      level: 2,
+      levelTitle: 'Verified Field Scout',
+      postsCreated: authorPostsCount,
+      verificationsDone: 14,
+      commentsAdded: 8,
+      tagsCreated: 1,
+      followersCount: 142,
+      followingCount: 29,
+      bio: fallbackBio ?? 'Active on-the-ground contributor with verified ground telemetry.',
+      location: fallbackLocation ?? 'On-Site Verification Point',
+      organization: fallbackOrganization,
+      isFollowed: isFollowing(userId),
+    );
+
+    _cachedUserProfiles[userId] = synthesizedUser;
+
+    // Asynchronously fetch from server to hydrate latest remote data
+    _fetchRemoteUserProfile(userId);
+
+    return synthesizedUser;
+  }
+
+  Future<void> _fetchRemoteUserProfile(String userId) async {
+    try {
+      final remote = await ApiService.fetchUserProfile(
+        userId,
+        token: _authToken,
+        followerId: _currentUser.id,
+      );
+      if (remote != null && !_disposed) {
+        _cachedUserProfiles[userId] = remote.copyWith(
+          isFollowed: isFollowing(userId),
+        );
+        notifyListeners();
+      }
+    } catch (_) {}
+  }
+
+  List<UserModel> getFollowedProfiles() {
+    final List<UserModel> list = [];
+    final seen = <String>{};
+    for (final id in _followedUserIds) {
+      if (id == _currentUser.id || id.startsWith('auth_') || id.startsWith('seed_')) continue;
+      if (seen.contains(id)) continue;
+      seen.add(id);
+      list.add(getUserProfile(id));
+    }
+    return list;
   }
 
   // Home Screen Filter States
@@ -592,7 +901,44 @@ class AppState extends ChangeNotifier {
   }
 
   EventModel? getEventForPost(PostModel post) {
-    return getEventById(post.eventId);
+    // 1. Direct ID match
+    final byId = getEventById(post.eventId);
+    if (byId != null) return byId;
+
+    // 2. Tag name match
+    if (post.tagName != null && post.tagName!.isNotEmpty) {
+      final cleanTag = post.tagName!.replaceAll('#', '').trim().toLowerCase();
+      try {
+        return _events.firstWhere((e) =>
+            e.tagName.replaceAll('#', '').trim().toLowerCase() == cleanTag ||
+            e.title.toLowerCase() == cleanTag);
+      } catch (_) {}
+    }
+
+    // 3. Post location match inside active event boundary
+    try {
+      return _events.firstWhere((e) => e.isUserInside(post.location));
+    } catch (_) {}
+
+    return null;
+  }
+
+  bool isUserInsidePostGeofence(PostModel post, GeoPoint userLocation) {
+    final event = getEventForPost(post);
+    if (event != null) {
+      return event.isUserInside(userLocation);
+    }
+    // Fallback: If no event is bound, check against the post's physical coordinates within standard 2000m radius
+    final distanceMeters = GeofenceMath.distanceBetweenPoints(userLocation, post.location);
+    return distanceMeters <= 2000.0;
+  }
+
+  double distanceToPostGeofence(PostModel post, GeoPoint userLocation) {
+    final event = getEventForPost(post);
+    if (event != null) {
+      return event.distanceFromUser(userLocation);
+    }
+    return GeofenceMath.distanceBetweenPoints(userLocation, post.location);
   }
 
   List<PostModel> getHomePosts() {
@@ -627,8 +973,7 @@ class AppState extends ChangeNotifier {
         break;
 
       case HomeFeedFilter.following:
-        final followedIds = followedJournalists.map((j) => j.id).toSet();
-        posts = posts.where((p) => followedIds.contains(p.authorId)).toList();
+        posts = posts.where((p) => _followedUserIds.contains(p.authorId)).toList();
         posts.sort((a, b) => b.createdAt.compareTo(a.createdAt));
         break;
 
@@ -663,10 +1008,41 @@ class AppState extends ChangeNotifier {
     return list;
   }
 
+  /// Checks whether a given post was authored / created by the current user
+  bool isCurrentUserPost(PostModel post) {
+    if (post.authorId.isNotEmpty && post.authorId == _currentUser.id) {
+      return true;
+    }
+    if (_currentUser.name.isNotEmpty &&
+        post.authorName.trim().toLowerCase() == _currentUser.name.trim().toLowerCase()) {
+      return true;
+    }
+    if ((_currentUser.id == 'user_dev_01' || _currentUser.id == 'guest_user') &&
+        (post.authorId == 'user_dev_01' || post.authorId == 'guest_user')) {
+      return true;
+    }
+    return false;
+  }
+
   List<PostModel> getMyWrittenPosts() {
-    final my = allPosts.where((p) => p.authorId == _currentUser.id).toList();
+    final my = allPosts.where((p) => isCurrentUserPost(p)).toList();
     my.sort((a, b) => b.createdAt.compareTo(a.createdAt));
     return my;
+  }
+
+  /// Retrieve all verified posts authored by a specific user/journalist
+  List<PostModel> getPostsByAuthor(String authorId, {String? authorName}) {
+    final posts = allPosts.where((p) {
+      if (p.authorId == authorId) return true;
+      if (authorName != null &&
+          authorName.trim().isNotEmpty &&
+          p.authorName.trim().toLowerCase() == authorName.trim().toLowerCase()) {
+        return true;
+      }
+      return false;
+    }).toList();
+    posts.sort((a, b) => b.createdAt.compareTo(a.createdAt));
+    return posts;
   }
 
   bool _isLoadingFromDb = false;
@@ -701,7 +1077,7 @@ class AppState extends ChangeNotifier {
         await Future.delayed(const Duration(seconds: 2));
         if (!_disposed) {
           remoteTags = await ApiService.fetchRemoteTags();
-          remotePosts = await ApiService.fetchRemotePosts();
+          remotePosts = await ApiService.fetchRemotePosts(userId: _currentUser.id);
         }
       }
 
@@ -719,8 +1095,16 @@ class AppState extends ChangeNotifier {
           if (_postsByEvent[evId] == null) {
             _postsByEvent[evId] = [];
           }
-          _postsByEvent[evId]!.add(post);
+          final isOwn = isCurrentUserPost(post);
+          final resolvedVote = isOwn ? 0 : (_userVotesByPostId[post.id] ?? post.userVote);
+          if (isOwn) {
+            _userVotesByPostId.remove(post.id);
+          } else if (resolvedVote != 0 && !_userVotesByPostId.containsKey(post.id)) {
+            _userVotesByPostId[post.id] = resolvedVote;
+          }
+          _postsByEvent[evId]!.add(post.copyWith(userVote: resolvedVote));
         }
+        _saveUserVotes();
       }
     } catch (e) {
       if (kDebugMode) print('loadRemoteDatabaseData error: $e');
@@ -856,7 +1240,23 @@ class AppState extends ChangeNotifier {
   }
 
   List<PostModel> getPostsForEvent(String eventId) {
-    final list = List<PostModel>.from(_postsByEvent[eventId] ?? []);
+    List<PostModel> list = List<PostModel>.from(_postsByEvent[eventId] ?? []);
+
+    // Fallback if key differs (e.g. tagId vs eventId or MongoDB ObjectId vs local slug)
+    if (list.isEmpty) {
+      final ev = getEventById(eventId);
+      list = allPosts.where((p) {
+        if (p.eventId == eventId) return true;
+        if (ev != null) {
+          if (p.tagName != null &&
+              (p.tagName!.toLowerCase() == ev.tagName.toLowerCase() ||
+               p.tagName!.replaceAll('#', '').toLowerCase() == ev.tagName.replaceAll('#', '').toLowerCase())) {
+            return true;
+          }
+        }
+        return false;
+      }).toList();
+    }
 
     // Filter by type
     var filtered = list;
@@ -885,52 +1285,89 @@ class AppState extends ChangeNotifier {
   }
 
   /// STRICT REQUIREMENT: Upvote (Like) or Downvote (Dislike)
-  /// ONLY permitted if the user is physically inside that tag's radius.
+  /// ONLY permitted if the user is physically inside that tag/post's geofence radius.
   VoteResult votePost({
     required String eventId,
     required String postId,
     required int direction,
     required GeoPoint userLocation,
   }) {
-    final eventIndex = _events.indexWhere((e) => e.id == eventId);
-    if (eventIndex == -1) {
-      return const VoteResult(allowed: false, message: 'Event not found');
+    // 1. Locate target post across _postsByEvent or allPosts
+    PostModel? post;
+    if (_postsByEvent.containsKey(eventId)) {
+      final idx = _postsByEvent[eventId]!.indexWhere((p) => p.id == postId);
+      if (idx != -1) {
+        post = _postsByEvent[eventId]![idx];
+      }
     }
 
-    final event = _events[eventIndex];
-    final bool isInside = event.isUserInside(userLocation);
+    if (post == null) {
+      for (final entry in _postsByEvent.entries) {
+        final idx = entry.value.indexWhere((p) => p.id == postId);
+        if (idx != -1) {
+          post = entry.value[idx];
+          break;
+        }
+      }
+    }
+
+    if (post == null) {
+      return const VoteResult(allowed: false, message: 'Post not found');
+    }
+
+    // 2. Disallow author voting on their own posts
+    if (isCurrentUserPost(post)) {
+      return const VoteResult(
+        allowed: false,
+        message: 'You cannot vote on your own post.',
+      );
+    }
+
+    // 3. Resolve Event boundary & check geofence
+    final event = getEventById(eventId) ?? getEventForPost(post);
+    final bool isInside = event != null
+        ? event.isUserInside(userLocation)
+        : isUserInsidePostGeofence(post, userLocation);
 
     if (!isInside) {
-      final double distanceMeters = event.distanceFromUser(userLocation);
+      final double distanceMeters = event != null
+          ? event.distanceFromUser(userLocation)
+          : GeofenceMath.distanceBetweenPoints(userLocation, post.location);
+      final tagLabel = event?.tagName ?? post.tagName ?? 'the post\'s geofence';
+      final radiusLabel = event?.formattedRadius ?? '2 km';
       return VoteResult(
         allowed: false,
-        message: 'Only eyewitnesses physically inside ${event.tagName} (${event.formattedRadius}) can verify or dispute news.',
+        message: 'Only eyewitnesses physically inside $tagLabel ($radiusLabel) can verify or dispute news.',
         distanceMeters: distanceMeters,
         event: event,
       );
     }
 
-    final posts = _postsByEvent[eventId];
-    if (posts == null) return const VoteResult(allowed: false, message: 'Post not found');
+    // 3. Update vote state
+    final int currentVote = _userVotesByPostId[postId] ?? post.userVote;
+    int newUpvotes = post.upvotes;
+    int newDownvotes = post.downvotes;
+    int newUserVote = 0;
+    bool isRemoved = false;
 
-    final index = posts.indexWhere((p) => p.id == postId);
-    if (index == -1) return const VoteResult(allowed: false, message: 'Post not found');
-
-    final post = posts[index];
-    if (post.userVote == direction) {
-      // Undo vote
-      if (direction == 1) post.upvotes--;
-      if (direction == -1) post.downvotes--;
-      post.userVote = 0;
+    if (currentVote == direction) {
+      // Toggle off / Undo vote: Clicking again removes that vote
+      if (direction == 1) newUpvotes = (newUpvotes - 1).clamp(0, 999999);
+      if (direction == -1) newDownvotes = (newDownvotes - 1).clamp(0, 999999);
+      newUserVote = 0;
+      _userVotesByPostId.remove(postId);
+      isRemoved = true;
     } else {
       // Revert previous vote if any
-      if (post.userVote == 1) post.upvotes--;
-      if (post.userVote == -1) post.downvotes--;
+      if (currentVote == 1) newUpvotes = (newUpvotes - 1).clamp(0, 999999);
+      if (currentVote == -1) newDownvotes = (newDownvotes - 1).clamp(0, 999999);
 
       // Apply new vote
-      if (direction == 1) post.upvotes++;
-      if (direction == -1) post.downvotes++;
-      post.userVote = direction;
+      if (direction == 1) newUpvotes += 1;
+      if (direction == -1) newDownvotes += 1;
+      newUserVote = direction;
+      _userVotesByPostId[postId] = direction;
+      isRemoved = false;
 
       // Gamification progress for on-site verification
       _awardActivity(
@@ -939,8 +1376,58 @@ class AppState extends ChangeNotifier {
       );
     }
 
+    _saveUserVotes();
+
+    post.upvotes = newUpvotes;
+    post.downvotes = newDownvotes;
+    post.userVote = newUserVote;
+
+    final updatedPost = post.copyWith(
+      upvotes: newUpvotes,
+      downvotes: newDownvotes,
+      userVote: newUserVote,
+    );
+
+    // Update in _postsByEvent
+    for (final entry in _postsByEvent.entries) {
+      final idx = entry.value.indexWhere((p) => p.id == postId);
+      if (idx != -1) {
+        entry.value[idx] = updatedPost;
+      }
+    }
+
     notifyListeners();
-    return VoteResult.success;
+
+    // 4. Trigger asynchronous sync to backend API
+    ApiService.submitVote(
+      postId: postId,
+      direction: newUserVote,
+      userId: _currentUser.id,
+      latitude: userLocation.latitude,
+      longitude: userLocation.longitude,
+    ).then((remotePost) {
+      if (remotePost != null) {
+        for (final entry in _postsByEvent.entries) {
+          final curIdx = entry.value.indexWhere((p) => p.id == postId);
+          if (curIdx != -1) {
+            entry.value[curIdx] = entry.value[curIdx].copyWith(
+              upvotes: remotePost.upvotes,
+              downvotes: remotePost.downvotes,
+              userVote: newUserVote,
+            );
+          }
+        }
+        notifyListeners();
+      }
+    }).catchError((err) {
+      if (kDebugMode) print('Background submitVote error: $err');
+    });
+
+    return VoteResult(
+      allowed: true,
+      userVote: newUserVote,
+      isRemoved: isRemoved,
+    );
   }
 
   /// Vote in an interactive poll (Strictly requires event presence)
@@ -978,6 +1465,10 @@ class AppState extends ChangeNotifier {
     final post = posts[index];
     if (post.pollOptions == null) {
       return const VoteResult(allowed: false, message: 'Not an active poll');
+    }
+    // Disallow author voting on their own poll
+    if (isCurrentUserPost(post)) {
+      return const VoteResult(allowed: false, message: 'You cannot participate in your own poll');
     }
     if (post.userVotedPollOptionId != null) {
       return const VoteResult(allowed: false, message: 'You have already voted in this poll');
@@ -1041,9 +1532,14 @@ class AppState extends ChangeNotifier {
     }
 
     final verification = locationService.createVerificationDetails(effectiveEvent);
+    final tagLocation = effectiveEvent.country.isNotEmpty && !effectiveEvent.city.toLowerCase().contains(effectiveEvent.country.toLowerCase())
+        ? '${effectiveEvent.city}, ${effectiveEvent.country}'
+        : effectiveEvent.city;
+
     final newPost = PostModel(
       id: 'post_${DateTime.now().millisecondsSinceEpoch}',
       eventId: eventId,
+      tagName: effectiveEvent.tagName,
       authorId: _currentUser.id,
       authorName: _currentUser.name,
       authorAvatar: _currentUser.avatarUrl,
@@ -1058,11 +1554,11 @@ class AppState extends ChangeNotifier {
       pollOptions: pollOptions,
       createdAt: DateTime.now(),
       location: locationService.currentLocation,
-      locationDisplayName: locationService.currentLocation.label ?? 'On-Site Verification Point',
+      locationDisplayName: tagLocation,
       distanceFromEpicenterMeters: eval.distanceMeters,
       verification: verification,
-      upvotes: 1,
-      userVote: 1,
+      upvotes: 0,
+      userVote: 0,
     );
 
     if (_postsByEvent[eventId] == null) {
@@ -1121,6 +1617,14 @@ class AppState extends ChangeNotifier {
         notifyListeners();
       }
     }
+  }
+
+  void addPostDirectly(String eventId, PostModel post) {
+    if (_postsByEvent[eventId] == null) {
+      _postsByEvent[eventId] = [];
+    }
+    _postsByEvent[eventId]!.add(post);
+    notifyListeners();
   }
 
   /// STRICT REQUIREMENT: "Any user, no matter the location can add comments on the posts and read any posts."
@@ -1350,7 +1854,7 @@ class AppState extends ChangeNotifier {
       const AchievementModel(
         id: 'ach_ground_reporter_1',
         title: 'Ground Reporter I',
-        description: 'Publish your first verified on-site eyewitness report.',
+        description: 'Publish your first verified eyewitness report.',
         category: AchievementCategory.reporting,
         tier: AchievementTier.bronze,
         icon: Icons.edit_note_rounded,
@@ -1389,7 +1893,7 @@ class AppState extends ChangeNotifier {
       const AchievementModel(
         id: 'ach_truth_guardian_2',
         title: 'Truth Guardian',
-        description: 'Cast 15 on-site verification votes (like/dislike) to confirm real news.',
+        description: 'Cast 15 verification votes (like/dislike) to confirm real news.',
         category: AchievementCategory.verification,
         tier: AchievementTier.silver,
         icon: Icons.shield_rounded,
@@ -1402,7 +1906,7 @@ class AppState extends ChangeNotifier {
       const AchievementModel(
         id: 'ach_consensus_master',
         title: 'Consensus Sentinel',
-        description: 'Cast 50 on-site verification votes with 95%+ community consensus.',
+        description: 'Cast 50 verification votes with 95%+ community consensus.',
         category: AchievementCategory.verification,
         tier: AchievementTier.gold,
         icon: Icons.balance_rounded,

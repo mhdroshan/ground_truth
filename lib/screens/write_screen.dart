@@ -39,7 +39,7 @@ class _WriteScreenState extends State<WriteScreen> {
         .toList();
 
     // Filter real events only (all dummy mock seed tags are removed)
-    var tags = appState.realEvents;
+    var tags = List<EventModel>.from(appState.realEvents);
     if (_searchQuery.trim().isNotEmpty) {
       final q = _searchQuery.toLowerCase();
       tags = tags.where((e) =>
@@ -52,6 +52,20 @@ class _WriteScreenState extends State<WriteScreen> {
     if (_selectedCategory != null) {
       tags = tags.where((e) => e.category == _selectedCategory).toList();
     }
+
+    // Sort tags based on geofence boundary:
+    // 1. Tags user is physically INSIDE the boundary come first
+    // 2. Tags outside the boundary follow
+    // 3. Within each group, closest tags (lowest distance) appear first
+    tags.sort((a, b) {
+      final aInside = a.isUserInside(userLoc);
+      final bInside = b.isUserInside(userLoc);
+      if (aInside && !bInside) return -1;
+      if (!aInside && bInside) return 1;
+      final aDist = a.distanceFromUser(userLoc);
+      final bDist = b.distanceFromUser(userLoc);
+      return aDist.compareTo(bDist);
+    });
 
     return Scaffold(
       backgroundColor: const Color(0xFFF8FAFC),
@@ -85,7 +99,7 @@ class _WriteScreenState extends State<WriteScreen> {
                   ),
                 ),
                 Text(
-                  'Select an active tag to submit verified ground news',
+                  'Select an active tag to submit eyewitness reports',
                   style: TextStyle(
                     color: AppColors.textSecondary,
                     fontSize: 10.5,
@@ -119,7 +133,12 @@ class _WriteScreenState extends State<WriteScreen> {
       ),
       body: RefreshIndicator(
         color: AppColors.primaryNavy,
-        onRefresh: () => appState.loadRemoteDatabaseData(),
+        onRefresh: () async {
+          await Future.wait([
+            appState.loadRemoteDatabaseData(),
+            locationService.refreshPhysicalLocation(),
+          ]);
+        },
         child: SingleChildScrollView(
           physics: const AlwaysScrollableScrollPhysics(),
           padding: const EdgeInsets.all(16),
@@ -213,7 +232,9 @@ class _WriteScreenState extends State<WriteScreen> {
                     ),
                   ),
                   Text(
-                    '${tags.length} Active Tags',
+                    eventsUserIsInside.isNotEmpty
+                        ? '${eventsUserIsInside.length} in boundary • ${tags.length} tags'
+                        : '${tags.length} Active Tags',
                     style: const TextStyle(
                       color: AppColors.textSecondary,
                       fontSize: 12,
@@ -427,30 +448,107 @@ class _WriteScreenState extends State<WriteScreen> {
         borderRadius: BorderRadius.circular(14),
         border: Border.all(color: const Color(0xFFBFDBFE)),
       ),
-      child: Row(
+      child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          const Icon(Icons.info_outline_rounded, color: Color(0xFF1D4ED8), size: 20),
-          const SizedBox(width: 10),
-          Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
+          Row(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              const Icon(Icons.info_outline_rounded, color: Color(0xFF1D4ED8), size: 20),
+              const SizedBox(width: 10),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    const Text(
+                      'Physical Geofence Gate Enforced',
+                      style: TextStyle(
+                        color: Color(0xFF1E3A8A),
+                        fontSize: 12.5,
+                        fontWeight: FontWeight.w800,
+                      ),
+                    ),
+                    const SizedBox(height: 2),
+                    Text(
+                      'Simulations are strictly disabled. You can only enter and write posts under an event tag if your device is physically inside its verified radius.',
+                      style: TextStyle(
+                        color: const Color(0xFF1E3A8A).withValues(alpha: 0.8),
+                        fontSize: 11.5,
+                        height: 1.35,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 10),
+          Container(
+            padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
+            decoration: BoxDecoration(
+              color: Colors.white,
+              borderRadius: BorderRadius.circular(10),
+              border: Border.all(color: const Color(0xFFDBEAFE)),
+            ),
+            child: Row(
               children: [
-                const Text(
-                  'Physical Geofence Gate Enforced',
-                  style: TextStyle(
-                    color: Color(0xFF1E3A8A),
-                    fontSize: 12.5,
-                    fontWeight: FontWeight.w800,
+                Icon(
+                  locationService.isLocating
+                      ? Icons.radar_rounded
+                      : (locationService.hasRealGpsFix ? Icons.my_location_rounded : Icons.location_searching_rounded),
+                  size: 16,
+                  color: const Color(0xFF1D4ED8),
+                ),
+                const SizedBox(width: 8),
+                Expanded(
+                  child: Text(
+                    locationService.isLocating
+                        ? 'Acquiring high-precision GPS satellite fix...'
+                        : (locationService.hasRealGpsFix
+                            ? 'GPS Location: ${locationService.displayLocationName}'
+                            : (locationService.locationStatus ?? 'Checking device GPS location...')),
+                    style: const TextStyle(
+                      color: AppColors.primaryNavy,
+                      fontSize: 11.5,
+                      fontWeight: FontWeight.w700,
+                    ),
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
                   ),
                 ),
-                const SizedBox(height: 2),
-                Text(
-                  'Simulations are strictly disabled. You can only enter and write posts under an event tag if your device is physically inside its verified radius.',
-                  style: TextStyle(
-                    color: const Color(0xFF1E3A8A).withValues(alpha: 0.8),
-                    fontSize: 11.5,
-                    height: 1.35,
+                const SizedBox(width: 6),
+                InkWell(
+                  onTap: () => locationService.refreshPhysicalLocation(),
+                  borderRadius: BorderRadius.circular(6),
+                  child: Container(
+                    padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                    decoration: BoxDecoration(
+                      color: const Color(0xFFEFF6FF),
+                      borderRadius: BorderRadius.circular(6),
+                      border: Border.all(color: const Color(0xFFBFDBFE)),
+                    ),
+                    child: Row(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        if (locationService.isLocating)
+                          const SizedBox(
+                            width: 10,
+                            height: 10,
+                            child: CircularProgressIndicator(strokeWidth: 1.5, color: Color(0xFF1D4ED8)),
+                          )
+                        else
+                          const Icon(Icons.refresh_rounded, size: 12, color: Color(0xFF1D4ED8)),
+                        const SizedBox(width: 4),
+                        const Text(
+                          'Update GPS',
+                          style: TextStyle(
+                            color: Color(0xFF1D4ED8),
+                            fontSize: 10.5,
+                            fontWeight: FontWeight.w800,
+                          ),
+                        ),
+                      ],
+                    ),
                   ),
                 ),
               ],
@@ -494,8 +592,25 @@ class _WriteScreenState extends State<WriteScreen> {
     double distance,
     LocationService locationService,
   ) {
+    void openTagFeed() {
+      Navigator.push(
+        context,
+        MaterialPageRoute(
+          builder: (context) => EventDetailScreen(eventId: ev.id),
+        ),
+      );
+    }
+
+    final locationStr = ev.cleanLocation;
+    final contributorStr = ev.activeContributors == 1
+        ? '1 contributor'
+        : '${ev.activeContributors} contributors';
+    final postsStr = ev.totalPosts == 1 ? '1 post' : '${ev.totalPosts} posts';
+    final subtitleText = locationStr.isNotEmpty
+        ? '$locationStr • $contributorStr • $postsStr'
+        : '$contributorStr • $postsStr';
+
     return Container(
-      padding: const EdgeInsets.all(16),
       decoration: BoxDecoration(
         color: Colors.white,
         borderRadius: BorderRadius.circular(16),
@@ -506,152 +621,218 @@ class _WriteScreenState extends State<WriteScreen> {
         boxShadow: [
           BoxShadow(
             color: isInside
-                ? const Color(0xFF15803D).withValues(alpha: 0.06)
-                : Colors.black.withValues(alpha: 0.02),
-            blurRadius: 8,
-            offset: const Offset(0, 2),
+                ? const Color(0xFF15803D).withValues(alpha: 0.07)
+                : Colors.black.withValues(alpha: 0.03),
+            blurRadius: 10,
+            offset: const Offset(0, 3),
           ),
         ],
       ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          // Header: Tag, Category, Radius
-          Row(
-            mainAxisAlignment: MainAxisAlignment.spaceBetween,
-            children: [
-              Row(
-                children: [
-                  Container(
-                    padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
-                    decoration: BoxDecoration(
-                      color: const Color(0xFFD0E1FD),
-                      borderRadius: BorderRadius.circular(12),
+      child: Material(
+        color: Colors.transparent,
+        borderRadius: BorderRadius.circular(16),
+        clipBehavior: Clip.antiAlias,
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            // Tappable Header & Body: clicking anywhere on the tag/body opens the tag feed page
+            InkWell(
+              onTap: openTagFeed,
+              borderRadius: const BorderRadius.vertical(top: Radius.circular(16)),
+              child: Padding(
+                padding: const EdgeInsets.fromLTRB(16, 16, 16, 12),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    // Header: Tag, Category, Radius
+                    Row(
+                      children: [
+                        // Tag Pill: Clicking opens the tag view / feed
+                        Container(
+                          padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+                          decoration: BoxDecoration(
+                            color: const Color(0xFFD0E1FD),
+                            borderRadius: BorderRadius.circular(12),
+                          ),
+                          child: Text(
+                            ev.tagName,
+                            style: const TextStyle(
+                              color: AppColors.primaryNavy,
+                              fontSize: 12,
+                              fontWeight: FontWeight.w800,
+                            ),
+                          ),
+                        ),
+                        const SizedBox(width: 8),
+                        // Category Pill
+                        Container(
+                          padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+                          decoration: BoxDecoration(
+                            color: const Color(0xFFF1F5F9),
+                            borderRadius: BorderRadius.circular(6),
+                            border: Border.all(color: AppColors.border),
+                          ),
+                          child: Text(
+                            ev.category.label,
+                            style: const TextStyle(
+                              color: AppColors.textSecondary,
+                              fontSize: 10.5,
+                              fontWeight: FontWeight.w700,
+                            ),
+                          ),
+                        ),
+                        const Spacer(),
+                        // Geofence status & radius pill
+                        Container(
+                          padding: const EdgeInsets.symmetric(horizontal: 9, vertical: 4),
+                          decoration: BoxDecoration(
+                            color: isInside ? const Color(0xFFDCFCE7) : const Color(0xFFF1F5F9),
+                            borderRadius: BorderRadius.circular(12),
+                            border: Border.all(
+                              color: isInside ? const Color(0xFF86EFAC) : AppColors.border,
+                            ),
+                          ),
+                          child: Row(
+                            mainAxisSize: MainAxisSize.min,
+                            children: [
+                              if (isInside) ...[
+                                Container(
+                                  width: 6,
+                                  height: 6,
+                                  decoration: const BoxDecoration(
+                                    color: Color(0xFF16A34A),
+                                    shape: BoxShape.circle,
+                                  ),
+                                ),
+                                const SizedBox(width: 5),
+                                Text(
+                                  'In Zone • ${ev.formattedRadius}',
+                                  style: const TextStyle(
+                                    color: Color(0xFF15803D),
+                                    fontSize: 10.5,
+                                    fontWeight: FontWeight.w800,
+                                  ),
+                                ),
+                              ] else ...[
+                                const Icon(
+                                  Icons.near_me_outlined,
+                                  size: 11,
+                                  color: AppColors.textSecondary,
+                                ),
+                                const SizedBox(width: 4),
+                                Text(
+                                  '${GeofenceMath.formatDistance(distance)} away',
+                                  style: const TextStyle(
+                                    color: AppColors.textSecondary,
+                                    fontSize: 10.5,
+                                    fontWeight: FontWeight.w700,
+                                  ),
+                                ),
+                              ],
+                            ],
+                          ),
+                        ),
+                      ],
                     ),
-                    child: Text(
-                      ev.tagName,
+                    const SizedBox(height: 10),
+
+                    // Title
+                    Text(
+                      ev.title,
                       style: const TextStyle(
                         color: AppColors.primaryNavy,
-                        fontSize: 12,
+                        fontSize: 15.5,
                         fontWeight: FontWeight.w800,
+                        height: 1.25,
                       ),
                     ),
-                  ),
-                  const SizedBox(width: 6),
-                  Container(
-                    padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
-                    decoration: BoxDecoration(
-                      color: const Color(0xFFF1F5F9),
-                      borderRadius: BorderRadius.circular(6),
-                      border: Border.all(color: AppColors.border),
-                    ),
-                    child: Text(
-                      ev.category.label,
+                    const SizedBox(height: 4),
+
+                    // Subtitle (without "Verified Ground")
+                    Text(
+                      subtitleText,
                       style: const TextStyle(
                         color: AppColors.textSecondary,
-                        fontSize: 10,
-                        fontWeight: FontWeight.w700,
+                        fontSize: 11.5,
+                        fontWeight: FontWeight.w500,
                       ),
                     ),
-                  ),
-                ],
-              ),
-              Container(
-                padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
-                decoration: BoxDecoration(
-                  color: isInside ? const Color(0xFFDCFCE7) : const Color(0xFFF1F5F9),
-                  borderRadius: BorderRadius.circular(6),
-                  border: Border.all(
-                    color: isInside ? const Color(0xFF86EFAC) : AppColors.border,
-                  ),
-                ),
-                child: Row(
-                  mainAxisSize: MainAxisSize.min,
-                  children: [
-                    Icon(
-                      isInside ? Icons.my_location : Icons.radar,
-                      size: 11,
-                      color: isInside ? const Color(0xFF15803D) : AppColors.textSecondary,
-                    ),
-                    const SizedBox(width: 4),
-                    Text(
-                      ev.formattedRadius,
-                      style: TextStyle(
-                        color: isInside ? const Color(0xFF15803D) : AppColors.textPrimary,
-                        fontSize: 10,
-                        fontWeight: FontWeight.w800,
+                    const SizedBox(height: 10),
+
+                    // Modern Geofence Boundary Status Strip
+                    Container(
+                      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 7),
+                      decoration: BoxDecoration(
+                        color: isInside ? const Color(0xFFF0FDF4) : const Color(0xFFF8FAFC),
+                        borderRadius: BorderRadius.circular(10),
+                        border: Border.all(
+                          color: isInside ? const Color(0xFFBBF7D0) : const Color(0xFFE2E8F0),
+                        ),
+                      ),
+                      child: Row(
+                        children: [
+                          Container(
+                            padding: const EdgeInsets.all(3),
+                            decoration: BoxDecoration(
+                              color: isInside ? const Color(0xFF16A34A) : const Color(0xFF94A3B8),
+                              shape: BoxShape.circle,
+                            ),
+                            child: Icon(
+                              isInside ? Icons.check : Icons.lock_outline_rounded,
+                              size: 11,
+                              color: Colors.white,
+                            ),
+                          ),
+                          const SizedBox(width: 8),
+                          Expanded(
+                            child: Text(
+                              isInside
+                                  ? 'Inside Geofence Boundary'
+                                  : 'Outside Boundary (${GeofenceMath.formatDistance(distance)} away)',
+                              style: TextStyle(
+                                color: isInside ? const Color(0xFF15803D) : const Color(0xFF64748B),
+                                fontSize: 11.5,
+                                fontWeight: FontWeight.w700,
+                              ),
+                            ),
+                          ),
+                          Container(
+                            padding: const EdgeInsets.symmetric(horizontal: 7, vertical: 2.5),
+                            decoration: BoxDecoration(
+                              color: isInside ? const Color(0xFFDCFCE7) : const Color(0xFFE2E8F0),
+                              borderRadius: BorderRadius.circular(6),
+                            ),
+                            child: Text(
+                              isInside ? 'UNLOCKED' : 'LOCKED',
+                              style: TextStyle(
+                                color: isInside ? const Color(0xFF166534) : const Color(0xFF64748B),
+                                fontSize: 10,
+                                fontWeight: FontWeight.w800,
+                                letterSpacing: 0.5,
+                              ),
+                            ),
+                          ),
+                        ],
                       ),
                     ),
                   ],
                 ),
               ),
-            ],
-          ),
-          const SizedBox(height: 8),
-
-          // Title & Description
-          Text(
-            ev.title,
-            style: const TextStyle(
-              color: AppColors.textPrimary,
-              fontSize: 14.5,
-              fontWeight: FontWeight.w800,
-              height: 1.25,
             ),
-          ),
-          const SizedBox(height: 4),
-          Text(
-            '${ev.city}, ${ev.country} • ${ev.activeContributors} contributors • ${ev.totalPosts} posts',
-            style: const TextStyle(color: AppColors.textSecondary, fontSize: 11.5),
-          ),
-          const SizedBox(height: 10),
 
-          // Proximity Status Chip
-          Container(
-            padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
-            decoration: BoxDecoration(
-              color: isInside ? const Color(0xFFDCFCE7) : const Color(0xFFF8FAFC),
-              borderRadius: BorderRadius.circular(8),
-              border: Border.all(
-                color: isInside ? const Color(0xFF86EFAC) : const Color(0xFFE2E8F0),
-              ),
-            ),
-            child: Row(
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                Icon(
-                  isInside ? Icons.check_circle_rounded : Icons.location_on_outlined,
-                  size: 13,
-                  color: isInside ? const Color(0xFF15803D) : AppColors.textMuted,
-                ),
-                const SizedBox(width: 5),
-                Text(
-                  isInside
-                      ? 'You are inside geofence boundary'
-                      : 'Outside geofence (${GeofenceMath.formatDistance(distance)} away)',
-                  style: TextStyle(
-                    color: isInside ? const Color(0xFF15803D) : AppColors.textSecondary,
-                    fontSize: 11,
-                    fontWeight: isInside ? FontWeight.w800 : FontWeight.w600,
-                  ),
-                ),
-              ],
-            ),
-          ),
-          const SizedBox(height: 12),
-
-          // Actions Row
-          Row(
-            children: [
-              Expanded(
+            // Simplified Action CTA: Full-width button with simplified text (no tag name)
+            Padding(
+              padding: const EdgeInsets.fromLTRB(16, 0, 16, 16),
+              child: SizedBox(
+                width: double.infinity,
                 child: ElevatedButton.icon(
                   style: ElevatedButton.styleFrom(
                     backgroundColor: isInside ? const Color(0xFF006C35) : const Color(0xFFF1F5F9),
                     foregroundColor: isInside ? Colors.white : const Color(0xFF64748B),
                     elevation: 0,
-                    padding: const EdgeInsets.symmetric(vertical: 10),
+                    padding: const EdgeInsets.symmetric(vertical: 12),
                     shape: RoundedRectangleBorder(
-                      borderRadius: BorderRadius.circular(10),
+                      borderRadius: BorderRadius.circular(12),
                       side: BorderSide(
                         color: isInside ? const Color(0xFF006C35) : const Color(0xFFE2E8F0),
                       ),
@@ -687,45 +868,22 @@ class _WriteScreenState extends State<WriteScreen> {
                           );
                         },
                   icon: Icon(
-                    isInside ? Icons.edit_note : Icons.lock_outline_rounded,
-                    size: 18,
+                    isInside ? Icons.edit_note_rounded : Icons.lock_outline_rounded,
+                    size: 19,
                     color: isInside ? Colors.white : const Color(0xFF64748B),
                   ),
                   label: Text(
-                    isInside ? 'Write Post Under ${ev.tagName}' : 'Outside Radius • Post Locked',
-                    style: const TextStyle(fontWeight: FontWeight.w800, fontSize: 12),
-                    maxLines: 1,
-                    overflow: TextOverflow.ellipsis,
-                  ),
-                ),
-              ),
-              const SizedBox(width: 8),
-              OutlinedButton(
-                style: OutlinedButton.styleFrom(
-                  side: const BorderSide(color: AppColors.border),
-                  padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
-                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
-                ),
-                onPressed: () {
-                  Navigator.push(
-                    context,
-                    MaterialPageRoute(
-                      builder: (context) => EventDetailScreen(eventId: ev.id),
+                    isInside ? 'Write Post' : 'Outside Radius • Post Locked',
+                    style: TextStyle(
+                      fontWeight: FontWeight.w800,
+                      fontSize: isInside ? 13 : 12,
                     ),
-                  );
-                },
-                child: const Text(
-                  'View Feed',
-                  style: TextStyle(
-                    color: AppColors.textPrimary,
-                    fontWeight: FontWeight.w700,
-                    fontSize: 11.5,
                   ),
                 ),
               ),
-            ],
-          ),
-        ],
+            ),
+          ],
+        ),
       ),
     );
   }

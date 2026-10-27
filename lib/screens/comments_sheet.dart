@@ -7,6 +7,7 @@ import '../providers/app_state.dart';
 import '../providers/location_service.dart';
 import '../theme/app_colors.dart';
 import '../utils/geofence_math.dart';
+import 'profile_screen.dart';
 
 class CommentsSheet extends StatefulWidget {
   final EventModel event;
@@ -212,11 +213,27 @@ class _CommentsSheetState extends State<CommentsSheet> {
                       return Row(
                         crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
-                          CircleAvatar(
-                            radius: 17,
-                            backgroundColor: const Color(0xFFF1F5F9),
-                            backgroundImage: NetworkImage(cmt.authorAvatar),
-                            onBackgroundImageError: (error, stack) {},
+                          InkWell(
+                            onTap: () {
+                              Navigator.push(
+                                context,
+                                MaterialPageRoute(
+                                  builder: (context) => ProfileScreen(
+                                    userId: cmt.authorId,
+                                    initialAuthorName: cmt.authorName,
+                                    initialAuthorAvatar: cmt.authorAvatar,
+                                    initialAuthorTrustScore: cmt.authorTrustScore,
+                                  ),
+                                ),
+                              );
+                            },
+                            borderRadius: BorderRadius.circular(17),
+                            child: CircleAvatar(
+                              radius: 17,
+                              backgroundColor: const Color(0xFFF1F5F9),
+                              backgroundImage: NetworkImage(cmt.authorAvatar),
+                              onBackgroundImageError: (error, stack) {},
+                            ),
                           ),
                           const SizedBox(width: 10),
                           Expanded(
@@ -232,30 +249,30 @@ class _CommentsSheetState extends State<CommentsSheet> {
                                 children: [
                                   Row(
                                     children: [
-                                      Text(
-                                        cmt.authorName,
-                                        style: const TextStyle(
-                                          color: AppColors.textPrimary,
-                                          fontSize: 13.5,
-                                          fontWeight: FontWeight.w700,
-                                        ),
-                                      ),
-                                      const SizedBox(width: 6),
-                                      Container(
-                                        padding: const EdgeInsets.symmetric(horizontal: 5, vertical: 1.5),
-                                        decoration: BoxDecoration(
-                                          color: const Color(0xFFD0E1FD),
-                                          borderRadius: BorderRadius.circular(4),
-                                        ),
+                                      InkWell(
+                                        onTap: () {
+                                          Navigator.push(
+                                            context,
+                                            MaterialPageRoute(
+                                              builder: (context) => ProfileScreen(
+                                                userId: cmt.authorId,
+                                                initialAuthorName: cmt.authorName,
+                                                initialAuthorAvatar: cmt.authorAvatar,
+                                                initialAuthorTrustScore: cmt.authorTrustScore,
+                                              ),
+                                            ),
+                                          );
+                                        },
                                         child: Text(
-                                          '${cmt.authorTrustScore}',
+                                          cmt.authorName,
                                           style: const TextStyle(
-                                            color: AppColors.primaryNavy,
-                                            fontSize: 9.5,
-                                            fontWeight: FontWeight.w800,
+                                            color: AppColors.textPrimary,
+                                            fontSize: 13.5,
+                                            fontWeight: FontWeight.w700,
                                           ),
                                         ),
                                       ),
+
                                       const Spacer(),
                                       Text(
                                         DateFormat('h:mm a').format(cmt.createdAt),
@@ -288,7 +305,7 @@ class _CommentsSheetState extends State<CommentsSheet> {
                                       const SizedBox(width: 4),
                                       Text(
                                         cmt.isVerifiedOnSite
-                                            ? 'Verified On-Site (${GeofenceMath.formatDistance(cmt.distanceMeters)} from epicenter)'
+                                            ? 'Verified (${GeofenceMath.formatDistance(cmt.distanceMeters)} from epicenter)'
                                             : 'Remote Observer (${GeofenceMath.formatDistance(cmt.distanceMeters)} away)',
                                         style: TextStyle(
                                           color: cmt.isVerifiedOnSite

@@ -70,6 +70,12 @@
 	<string>GroundTruth requires physical GPS location to verify on-site eyewitness reports and geofences.</string>
 	<key>NSLocationAlwaysAndWhenInUseUsageDescription</key>
 	<string>GroundTruth requires physical GPS location to verify on-site eyewitness reports and geofences.</string>
+	<key>NSPhotoLibraryUsageDescription</key>
+	<string>GroundTruth requires access to your photo library to select and upload eyewitness photos and videos from the scene.</string>
+	<key>NSCameraUsageDescription</key>
+	<string>GroundTruth requires camera access to capture live verified eyewitness photos and videos on the ground.</string>
+	<key>NSMicrophoneUsageDescription</key>
+	<string>GroundTruth requires microphone access to record audio when filming live eyewitness footage.</string>
 	<key>NSAppTransportSecurity</key>
 	<dict>
 		<key>NSAllowsArbitraryLoads</key>

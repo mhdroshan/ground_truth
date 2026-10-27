@@ -101,7 +101,7 @@ void main() {
     HttpOverrides.global = _TestHttpOverrides();
   });
 
-  testWidgets('ProfileScreen displays verified location card when location is fetched properly', (WidgetTester tester) async {
+  testWidgets('ProfileScreen displays verified location under username and no presence card', (WidgetTester tester) async {
     final locationService = LocationService();
     final appState = AppState();
 
@@ -143,30 +143,17 @@ void main() {
     // Verify User identity exists
     expect(find.text(appState.currentUser.name), findsOneWidget);
 
-    // Verify Verified Location pill under handle exists
-    expect(find.text('Kochi, Kerala, India'), findsAtLeastNWidgets(1));
+    // Verify Verified Location pill under username exists
+    expect(find.text('Kochi, Kerala, India'), findsOneWidget);
     expect(find.text('±4m'), findsOneWidget);
 
-    // Verify the dedicated "CURRENT PHYSICAL PRESENCE" card exists
-    expect(find.text('CURRENT PHYSICAL PRESENCE'), findsOneWidget);
-    expect(find.text('Verified Ground Location'), findsOneWidget);
-    expect(find.text('±4.2m'), findsOneWidget);
-
-    // Verify coordinate string is shown
-    expect(find.textContaining('9.9406° N, 76.2653° E'), findsOneWidget);
-
-    // Verify security & attestation badges
-    expect(find.text('No Mock GPS'), findsOneWidget);
-    expect(find.text('Hardware Attested'), findsOneWidget);
-    expect(find.text('Cell & Wi-Fi Matched'), findsOneWidget);
-
-    // Because (9.9406, 76.2653) is within 2km of (9.9420, 76.2660) (about 175 meters away),
-    // the user is physically INSIDE the tag!
-    expect(find.text('On-Site Eyewitness Clearance: ACTIVE'), findsOneWidget);
-    expect(find.textContaining('You are physically inside #KochiProtest'), findsOneWidget);
+    // Verify the dedicated "CURRENT PHYSICAL PRESENCE" card does NOT exist
+    expect(find.text('CURRENT PHYSICAL PRESENCE'), findsNothing);
+    expect(find.text('Verified Ground Location'), findsNothing);
+    expect(find.text('No Mock GPS'), findsNothing);
   });
 
-  testWidgets('ProfileScreen displays acquire prompt when location is not yet fetched', (WidgetTester tester) async {
+  testWidgets('ProfileScreen does not display presence card when location is not yet fetched', (WidgetTester tester) async {
     final locationService = LocationService();
     final appState = AppState();
 
@@ -185,8 +172,45 @@ void main() {
 
     await tester.pump();
 
-    // Should display the "Verify Ground Presence" prompt and "Acquire" button
-    expect(find.text('Verify Ground Presence'), findsOneWidget);
-    expect(find.text('Acquire'), findsOneWidget);
+    // Dedicated physical presence card and prompts should not exist
+    expect(find.text('CURRENT PHYSICAL PRESENCE'), findsNothing);
+    expect(find.text('Verify Ground Presence'), findsNothing);
+  });
+
+  testWidgets('ProfileScreen does not display cryptographic attestation pass for self or other user', (WidgetTester tester) async {
+    final locationService = LocationService();
+    final appState = AppState();
+
+    // 1. Check self profile
+    await tester.pumpWidget(
+      MultiProvider(
+        providers: [
+          ChangeNotifierProvider<LocationService>.value(value: locationService),
+          ChangeNotifierProvider<AppState>.value(value: appState),
+        ],
+        child: const MaterialApp(
+          home: ProfileScreen(),
+        ),
+      ),
+    );
+    await tester.pumpAndSettle();
+
+    expect(find.text('CRYPTOGRAPHIC ATTESTATION PASS'), findsNothing);
+
+    // 2. Check other user profile
+    await tester.pumpWidget(
+      MultiProvider(
+        providers: [
+          ChangeNotifierProvider<LocationService>.value(value: locationService),
+          ChangeNotifierProvider<AppState>.value(value: appState),
+        ],
+        child: const MaterialApp(
+          home: ProfileScreen(userId: 'auth_rajesh', initialAuthorName: 'Rajesh K. Sandhu'),
+        ),
+      ),
+    );
+    await tester.pumpAndSettle();
+
+    expect(find.text('CRYPTOGRAPHIC ATTESTATION PASS'), findsNothing);
   });
 }
