@@ -41,8 +41,17 @@ module.exports = async function validateGeofence(req, res, next) {
 
     const point = [parseFloat(longitude), parseFloat(latitude)]; // GeoJSON order: [lng, lat]
 
+    const targetPostId = postId || req.params.id;
+    let parentPost = null;
+    if (targetPostId && typeof targetPostId === 'string' && targetPostId.match(/^[0-9a-fA-F]{24}$/)) {
+      parentPost = await Post.findById(targetPostId);
+      if (parentPost) {
+        req.parentPost = parentPost;
+      }
+    }
+
     // Validate against parent Tag / Event boundary if present
-    const targetTagId = paramTagId || paramEventId || bodyTagId || bodyEventId;
+    const targetTagId = paramTagId || paramEventId || bodyTagId || bodyEventId || (parentPost ? (parentPost.tagId || parentPost.eventId) : null);
     if (targetTagId) {
       let targetTag;
       if (typeof targetTagId === 'string' && targetTagId.match(/^[0-9a-fA-F]{24}$/)) {
@@ -98,16 +107,6 @@ module.exports = async function validateGeofence(req, res, next) {
           }
         }
         req.targetTag = targetTag;
-      }
-    }
-
-    // If validating for a specific post (e.g. comments or updates)
-    if (postId) {
-      if (typeof postId === 'string' && postId.match(/^[0-9a-fA-F]{24}$/)) {
-        const parentPost = await Post.findById(postId);
-        if (parentPost) {
-          req.parentPost = parentPost;
-        }
       }
     }
 

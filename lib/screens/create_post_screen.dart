@@ -14,8 +14,13 @@ import 'login_screen.dart';
 
 class CreatePostScreen extends StatefulWidget {
   final EventModel event;
+  final PostType initialType;
 
-  const CreatePostScreen({super.key, required this.event});
+  const CreatePostScreen({
+    super.key,
+    required this.event,
+    this.initialType = PostType.text,
+  });
 
   @override
   State<CreatePostScreen> createState() => _CreatePostScreenState();
@@ -23,7 +28,7 @@ class CreatePostScreen extends StatefulWidget {
 
 class _CreatePostScreenState extends State<CreatePostScreen> with SingleTickerProviderStateMixin {
   final _contentController = TextEditingController();
-  PostType _selectedType = PostType.text;
+  late PostType _selectedType;
   bool _isAnonymous = false;
   bool _isPublishing = false;
 
@@ -43,9 +48,20 @@ class _CreatePostScreenState extends State<CreatePostScreen> with SingleTickerPr
   List<double> _voiceWaveform = [0.3, 0.6, 0.9, 0.5, 0.7, 0.9, 0.4, 0.8];
   late AnimationController _pulseController;
 
+  // Poll options state
+  final List<TextEditingController> _pollOptionControllers = [
+    TextEditingController(),
+    TextEditingController(),
+  ];
+
   @override
   void initState() {
     super.initState();
+    _selectedType = widget.initialType;
+    if (_selectedType == PostType.poll && _pollOptionControllers.isEmpty) {
+      _pollOptionControllers.add(TextEditingController());
+      _pollOptionControllers.add(TextEditingController());
+    }
     _pulseController = AnimationController(
       vsync: this,
       duration: const Duration(milliseconds: 1000),
@@ -54,6 +70,9 @@ class _CreatePostScreenState extends State<CreatePostScreen> with SingleTickerPr
 
   @override
   void dispose() {
+    for (final c in _pollOptionControllers) {
+      c.dispose();
+    }
     _voiceTimer?.cancel();
     _pulseController.dispose();
     _contentController.dispose();
@@ -89,6 +108,18 @@ class _CreatePostScreenState extends State<CreatePostScreen> with SingleTickerPr
   void _handleVoiceTap() {
     setState(() {
       _selectedType = PostType.voiceNote;
+    });
+  }
+
+  // --- Poll Handling ---
+  void _handlePollTap() {
+    setState(() {
+      _selectedType = PostType.poll;
+      if (_pollOptionControllers.length < 2) {
+        while (_pollOptionControllers.length < 2) {
+          _pollOptionControllers.add(TextEditingController());
+        }
+      }
     });
   }
 
@@ -158,7 +189,30 @@ class _CreatePostScreenState extends State<CreatePostScreen> with SingleTickerPr
     final rawText = _contentController.text.trim();
     final hasMedia = _attachedPhotoUrl != null || _attachedVideoThumbnailUrl != null || _hasVoiceRecorded;
 
-    if (rawText.isEmpty && !hasMedia && _selectedType == PostType.text) {
+    if (_selectedType == PostType.poll) {
+      if (rawText.isEmpty) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            backgroundColor: AppColors.alertAmber,
+            content: Text('Please enter your poll question (e.g. Is the roadblock cleared?)'),
+          ),
+        );
+        return;
+      }
+      final validOptions = _pollOptionControllers
+          .map((c) => c.text.trim())
+          .where((t) => t.isNotEmpty)
+          .toList();
+      if (validOptions.length < 2) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            backgroundColor: AppColors.alertRed,
+            content: Text('Please provide at least 2 poll options.'),
+          ),
+        );
+        return;
+      }
+    } else if (rawText.isEmpty && !hasMedia && _selectedType == PostType.text) {
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(content: Text('Please write your eyewitness report or attach media')),
       );
@@ -199,6 +253,21 @@ class _CreatePostScreenState extends State<CreatePostScreen> with SingleTickerPr
     final int? finalAudioDuration = _selectedType == PostType.voiceNote ? (_voiceSeconds > 0 ? _voiceSeconds : 24) : null;
     final List<double>? finalWaveform = _selectedType == PostType.voiceNote ? _voiceWaveform : null;
 
+    List<PollOption>? finalPollOptions;
+    if (_selectedType == PostType.poll) {
+      final validOptions = _pollOptionControllers
+          .map((c) => c.text.trim())
+          .where((t) => t.isNotEmpty)
+          .toList();
+      finalPollOptions = validOptions.asMap().entries.map((entry) {
+        return PollOption(
+          id: 'opt_${entry.key + 1}_${DateTime.now().millisecondsSinceEpoch}',
+          text: entry.value,
+          votes: 0,
+        );
+      }).toList();
+    }
+
     final success = appState.addPost(
       eventId: widget.event.id,
       event: widget.event,
@@ -208,6 +277,7 @@ class _CreatePostScreenState extends State<CreatePostScreen> with SingleTickerPr
       videoThumbnailUrl: finalVideoUrl,
       audioDurationSeconds: finalAudioDuration,
       waveform: finalWaveform,
+      pollOptions: finalPollOptions,
       locationService: locationService,
     );
 
@@ -498,16 +568,18 @@ class _CreatePostScreenState extends State<CreatePostScreen> with SingleTickerPr
                     controller: _contentController,
                     maxLines: 5,
                     style: const TextStyle(color: AppColors.textPrimary, fontSize: 14.5),
-                    decoration: const InputDecoration(
-                      hintText: "What's happening on the ground? Provide objective details...",
-                      hintStyle: TextStyle(color: AppColors.textMuted, fontSize: 14),
+                    decoration: InputDecoration(
+                      hintText: _selectedType == PostType.poll
+                          ? "What is your eyewitness poll question? (e.g. Is the roadblock cleared?)..."
+                          : "What's happening on the ground? Provide objective details...",
+                      hintStyle: const TextStyle(color: AppColors.textMuted, fontSize: 14),
                       border: InputBorder.none,
                       contentPadding: EdgeInsets.zero,
                     ),
                   ),
                   const SizedBox(height: 16),
 
-                  // Normal Media Buttons Row (Photo, Video, Voice)
+                  // Normal Media Buttons Row (Photo, Video, Voice, Poll)
                   Row(
                     children: [
                       _buildMediaButton(
@@ -517,7 +589,7 @@ class _CreatePostScreenState extends State<CreatePostScreen> with SingleTickerPr
                         hasAttachment: _attachedPhotoUrl != null,
                         onTap: _handlePhotoTap,
                       ),
-                      const SizedBox(width: 10),
+                      const SizedBox(width: 8),
                       _buildMediaButton(
                         icon: Icons.videocam_outlined,
                         label: 'Video',
@@ -525,13 +597,21 @@ class _CreatePostScreenState extends State<CreatePostScreen> with SingleTickerPr
                         hasAttachment: _attachedVideoThumbnailUrl != null,
                         onTap: _handleVideoTap,
                       ),
-                      const SizedBox(width: 10),
+                      const SizedBox(width: 8),
                       _buildMediaButton(
                         icon: Icons.mic_none_rounded,
                         label: 'Voice',
                         type: PostType.voiceNote,
                         hasAttachment: _hasVoiceRecorded,
                         onTap: _handleVoiceTap,
+                      ),
+                      const SizedBox(width: 8),
+                      _buildMediaButton(
+                        icon: Icons.how_to_vote_outlined,
+                        label: 'Poll',
+                        type: PostType.poll,
+                        hasAttachment: _pollOptionControllers.any((c) => c.text.trim().isNotEmpty),
+                        onTap: _handlePollTap,
                       ),
                     ],
                   ),
@@ -553,6 +633,12 @@ class _CreatePostScreenState extends State<CreatePostScreen> with SingleTickerPr
                   // 3. Voice Studio / Recorder Card
                   if (_selectedType == PostType.voiceNote) ...[
                     _buildVoiceStudioCard(),
+                    const SizedBox(height: 14),
+                  ],
+
+                  // 4. Poll Creator Card
+                  if (_selectedType == PostType.poll) ...[
+                    _buildPollCreatorCard(),
                     const SizedBox(height: 14),
                   ],
 
@@ -1092,6 +1178,209 @@ class _CreatePostScreenState extends State<CreatePostScreen> with SingleTickerPr
                 ),
               ],
             ],
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildPollCreatorCard() {
+    const letters = ['A', 'B', 'C', 'D', 'E', 'F'];
+
+    return Container(
+      padding: const EdgeInsets.all(16),
+      decoration: BoxDecoration(
+        color: const Color(0xFFF8FAFC),
+        borderRadius: BorderRadius.circular(16),
+        border: Border.all(color: const Color(0xFFCBD5E1)),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+            children: [
+              Row(
+                children: [
+                  Container(
+                    width: 32,
+                    height: 32,
+                    decoration: const BoxDecoration(
+                      color: Color(0xFFD0E1FD),
+                      shape: BoxShape.circle,
+                    ),
+                    child: const Icon(
+                      Icons.how_to_vote_rounded,
+                      size: 18,
+                      color: AppColors.primaryNavy,
+                    ),
+                  ),
+                  const SizedBox(width: 10),
+                  const Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        'EYEWITNESS POLL BUILDER',
+                        style: TextStyle(
+                          color: AppColors.primaryNavy,
+                          fontSize: 12,
+                          fontWeight: FontWeight.w800,
+                          letterSpacing: 0.5,
+                        ),
+                      ),
+                      Text(
+                        'Only on-site eyewitnesses can vote',
+                        style: TextStyle(
+                          color: AppColors.textSecondary,
+                          fontSize: 11,
+                          fontWeight: FontWeight.w500,
+                        ),
+                      ),
+                    ],
+                  ),
+                ],
+              ),
+              IconButton(
+                icon: const Icon(Icons.close, size: 18, color: AppColors.textMuted),
+                onPressed: () {
+                  setState(() {
+                    _selectedType = PostType.text;
+                  });
+                },
+              ),
+            ],
+          ),
+          const SizedBox(height: 14),
+
+          // Option Input Fields
+          ..._pollOptionControllers.asMap().entries.map((entry) {
+            final idx = entry.key;
+            final controller = entry.value;
+            final letter = idx < letters.length ? letters[idx] : '${idx + 1}';
+
+            return Container(
+              margin: const EdgeInsets.only(bottom: 10),
+              decoration: BoxDecoration(
+                color: Colors.white,
+                borderRadius: BorderRadius.circular(12),
+                border: Border.all(color: AppColors.border),
+              ),
+              padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 4),
+              child: Row(
+                children: [
+                  Container(
+                    width: 24,
+                    height: 24,
+                    decoration: BoxDecoration(
+                      color: const Color(0xFFF1F5F9),
+                      borderRadius: BorderRadius.circular(6),
+                      border: Border.all(color: const Color(0xFFCBD5E1)),
+                    ),
+                    alignment: Alignment.center,
+                    child: Text(
+                      letter,
+                      style: const TextStyle(
+                        color: AppColors.primaryNavy,
+                        fontSize: 11,
+                        fontWeight: FontWeight.w800,
+                      ),
+                    ),
+                  ),
+                  const SizedBox(width: 10),
+                  Expanded(
+                    child: TextField(
+                      controller: controller,
+                      style: const TextStyle(
+                        color: AppColors.textPrimary,
+                        fontSize: 13.5,
+                        fontWeight: FontWeight.w600,
+                      ),
+                      decoration: InputDecoration(
+                        hintText: idx == 0
+                            ? 'e.g., Road is completely blocked'
+                            : (idx == 1
+                                ? 'e.g., Traffic moving slowly'
+                                : 'Option ${idx + 1}...'),
+                        hintStyle: const TextStyle(
+                          color: AppColors.textMuted,
+                          fontSize: 13,
+                          fontWeight: FontWeight.normal,
+                        ),
+                        border: InputBorder.none,
+                        isDense: true,
+                        contentPadding: const EdgeInsets.symmetric(vertical: 10),
+                      ),
+                      onChanged: (_) => setState(() {}),
+                    ),
+                  ),
+                  if (_pollOptionControllers.length > 2)
+                    IconButton(
+                      icon: const Icon(Icons.remove_circle_outline, size: 18, color: AppColors.alertRed),
+                      padding: EdgeInsets.zero,
+                      constraints: const BoxConstraints(),
+                      onPressed: () {
+                        setState(() {
+                          _pollOptionControllers.removeAt(idx).dispose();
+                        });
+                      },
+                    ),
+                ],
+              ),
+            );
+          }),
+
+          const SizedBox(height: 4),
+
+          // Add Option Button
+          if (_pollOptionControllers.length < 6)
+            Align(
+              alignment: Alignment.centerLeft,
+              child: TextButton.icon(
+                style: TextButton.styleFrom(
+                  foregroundColor: AppColors.primaryNavy,
+                  padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                  shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(8),
+                    side: const BorderSide(color: Color(0xFFCBD5E1)),
+                  ),
+                ),
+                onPressed: () {
+                  setState(() {
+                    _pollOptionControllers.add(TextEditingController());
+                  });
+                },
+                icon: const Icon(Icons.add_rounded, size: 16),
+                label: Text(
+                  'Add Option (${_pollOptionControllers.length}/6)',
+                  style: const TextStyle(fontSize: 12, fontWeight: FontWeight.w700),
+                ),
+              ),
+            ),
+
+          const SizedBox(height: 10),
+          Container(
+            padding: const EdgeInsets.all(10),
+            decoration: BoxDecoration(
+              color: const Color(0xFFEFF6FF),
+              borderRadius: BorderRadius.circular(10),
+              border: Border.all(color: const Color(0xFFBFDBFE)),
+            ),
+            child: Row(
+              children: [
+                const Icon(Icons.info_outline_rounded, size: 15, color: Color(0xFF1D4ED8)),
+                const SizedBox(width: 8),
+                Expanded(
+                  child: Text(
+                    'GroundTruth Rule: Anyone outside ${widget.event.tagName} (${widget.event.formattedRadius}) will be blocked from voting.',
+                    style: const TextStyle(
+                      color: Color(0xFF1E3A8A),
+                      fontSize: 11,
+                      fontWeight: FontWeight.w600,
+                    ),
+                  ),
+                ),
+              ],
+            ),
           ),
         ],
       ),

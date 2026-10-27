@@ -779,63 +779,80 @@ class AppState extends ChangeNotifier {
     return VoteResult.success;
   }
 
-  /// Vote in an interactive poll (also requires event presence)
-  bool votePoll({
+  /// Vote in an interactive poll (Strictly requires event presence)
+  VoteResult votePoll({
     required String eventId,
     required String postId,
     required String optionId,
     required GeoPoint userLocation,
   }) {
     final eventIndex = _events.indexWhere((e) => e.id == eventId);
-    if (eventIndex == -1) return false;
+    if (eventIndex == -1) {
+      return const VoteResult(allowed: false, message: 'Tag / Event not found');
+    }
     final event = _events[eventIndex];
-    if (!event.isUserInside(userLocation)) return false;
+    if (!event.isUserInside(userLocation)) {
+      final double distanceMeters = event.distanceFromUser(userLocation);
+      return VoteResult(
+        allowed: false,
+        message: 'Only eyewitnesses physically inside ${event.tagName} (${event.formattedRadius}) can participate in polls.',
+        distanceMeters: distanceMeters,
+        event: event,
+      );
+    }
 
     final posts = _postsByEvent[eventId];
-    if (posts == null) return false;
+    if (posts == null) {
+      return const VoteResult(allowed: false, message: 'Post not found');
+    }
 
     final index = posts.indexWhere((p) => p.id == postId);
-    if (index == -1) return false;
+    if (index == -1) {
+      return const VoteResult(allowed: false, message: 'Post not found');
+    }
 
     final post = posts[index];
-    if (post.pollOptions == null || post.userVotedPollOptionId != null) return false;
+    if (post.pollOptions == null) {
+      return const VoteResult(allowed: false, message: 'Not an active poll');
+    }
+    if (post.userVotedPollOptionId != null) {
+      return const VoteResult(allowed: false, message: 'You have already voted in this poll');
+    }
 
     final optIndex = post.pollOptions!.indexWhere((o) => o.id == optionId);
     if (optIndex != -1) {
       post.pollOptions![optIndex].votes++;
-      final updated = PostModel(
-        id: post.id,
-        eventId: post.eventId,
-        authorId: post.authorId,
-        authorName: post.authorName,
-        authorAvatar: post.authorAvatar,
-        authorTrustScore: post.authorTrustScore,
-        authorIsVerifiedJournalist: post.authorIsVerifiedJournalist,
-        type: post.type,
-        content: post.content,
-        mediaUrl: post.mediaUrl,
-        videoThumbnailUrl: post.videoThumbnailUrl,
-        audioDurationSeconds: post.audioDurationSeconds,
-        waveform: post.waveform,
+      final updated = post.copyWith(
         pollOptions: post.pollOptions,
         userVotedPollOptionId: optionId,
-        createdAt: post.createdAt,
-        location: post.location,
-        locationDisplayName: post.locationDisplayName,
-        distanceFromEpicenterMeters: post.distanceFromEpicenterMeters,
-        verification: post.verification,
-        upvotes: post.upvotes,
-        downvotes: post.downvotes,
-        userVote: post.userVote,
-        commentsCount: post.commentsCount,
       );
       posts[index] = updated;
 
       _awardActivity(xpGain: 15, verificationsDelta: 1);
       notifyListeners();
-      return true;
+
+      // Trigger asynchronous sync to backend API
+      ApiService.submitPollVote(
+        postId: postId,
+        optionId: optionId,
+        userId: _currentUser.id,
+        latitude: userLocation.latitude,
+        longitude: userLocation.longitude,
+      ).then((remotePost) {
+        if (remotePost != null) {
+          final curIdx = posts.indexWhere((p) => p.id == postId);
+          if (curIdx != -1) {
+            posts[curIdx] = remotePost;
+            notifyListeners();
+          }
+        }
+      }).catchError((err) {
+        if (kDebugMode) print('Background submitPollVote error: $err');
+      });
+
+      return VoteResult.success;
     }
-    return false;
+    return const VoteResult(allowed: false, message: 'Poll option not found');
   }
 
   /// Add post (Strictly requires user to be physically inside the event radius)

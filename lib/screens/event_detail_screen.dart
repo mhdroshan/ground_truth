@@ -224,12 +224,15 @@ class _EventDetailScreenState extends State<EventDetailScreen> {
                             Navigator.push(
                               context,
                               MaterialPageRoute(
-                                builder: (context) => CreatePostScreen(event: event!),
+                                builder: (context) => CreatePostScreen(
+                                  event: event!,
+                                  initialType: _selectedTabIndex == 3 ? PostType.poll : PostType.text,
+                                ),
                               ),
                             );
                           },
-                          icon: const Icon(Icons.edit_note, size: 18),
-                          label: const Text('Write First Report'),
+                          icon: Icon(_selectedTabIndex == 3 ? Icons.how_to_vote : Icons.edit_note, size: 18),
+                          label: Text(_selectedTabIndex == 3 ? 'Create First Poll' : 'Write First Report'),
                         ),
                       ],
                     ],
@@ -479,15 +482,32 @@ class _EventDetailScreenState extends State<EventDetailScreen> {
                     context,
                     event: event,
                     distanceMeters: event.distanceFromUser(userLoc),
+                    customTitle: 'On-Site Poll Voting Required',
+                    customMessage: 'The sole purpose of GroundTruth is to verify ground reality. Only eyewitnesses physically located inside ${event.tagName} (${event.formattedRadius} radius) can participate in polls.',
                   );
                   return;
                 }
-                appState.votePoll(
+                final res = appState.votePoll(
                   eventId: event.id,
                   postId: post.id,
                   optionId: optId,
                   userLocation: userLoc,
                 );
+                if (res.allowed) {
+                  ScaffoldMessenger.of(context).showSnackBar(
+                    const SnackBar(
+                      backgroundColor: Color(0xFF0D652D),
+                      content: Text('Eyewitness poll vote recorded! (+15 XP)'),
+                    ),
+                  );
+                } else {
+                  ScaffoldMessenger.of(context).showSnackBar(
+                    SnackBar(
+                      backgroundColor: AppColors.alertRed,
+                      content: Text(res.message ?? 'Vote could not be recorded.'),
+                    ),
+                  );
+                }
               },
             ),
 

@@ -12,6 +12,9 @@ import 'create_tag_screen.dart';
 import 'comments_sheet.dart';
 import 'event_detail_screen.dart';
 import 'login_screen.dart';
+import '../providers/location_service.dart';
+import '../widgets/post/poll_widget.dart';
+import '../widgets/post/verification_restricted_sheet.dart';
 
 class ProfileScreen extends StatefulWidget {
   const ProfileScreen({super.key});
@@ -1260,6 +1263,49 @@ class _ProfileScreenState extends State<ProfileScreen> {
                   ),
                 ),
               ),
+            ),
+          ],
+          // Poll Widget if post is a poll
+          if (post.type == PostType.poll && post.pollOptions != null) ...[
+            const SizedBox(height: 10),
+            PollWidget(
+              options: post.pollOptions!,
+              userVotedOptionId: post.userVotedPollOptionId,
+              onVote: (optId) {
+                final locationService = context.read<LocationService>();
+                final userLoc = locationService.currentLocation;
+                final res = appState.votePoll(
+                  eventId: post.eventId,
+                  postId: post.id,
+                  optionId: optId,
+                  userLocation: userLoc,
+                );
+                if (!res.allowed) {
+                  if (event != null) {
+                    VerificationRestrictedSheet.show(
+                      context,
+                      event: event,
+                      distanceMeters: res.distanceMeters ?? event.distanceFromUser(userLoc),
+                      customTitle: 'On-Site Poll Voting Required',
+                      customMessage: 'The sole purpose of GroundTruth is to verify ground reality. Only eyewitnesses physically located inside ${event.tagName} (${event.formattedRadius} radius) can participate in polls.',
+                    );
+                  } else {
+                    ScaffoldMessenger.of(context).showSnackBar(
+                      SnackBar(
+                        backgroundColor: AppColors.alertRed,
+                        content: Text(res.message ?? 'Only eyewitnesses on-site can vote in polls.'),
+                      ),
+                    );
+                  }
+                } else {
+                  ScaffoldMessenger.of(context).showSnackBar(
+                    const SnackBar(
+                      backgroundColor: Color(0xFF0D652D),
+                      content: Text('Eyewitness poll vote recorded! (+15 XP)'),
+                    ),
+                  );
+                }
+              },
             ),
           ],
           const SizedBox(height: 12),

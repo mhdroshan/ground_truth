@@ -324,16 +324,35 @@ class _ReadScreenState extends State<ReadScreen> {
                             }
                           },
                           onPollVote: (optId) {
-                            final ok = appState.votePoll(
+                            final res = appState.votePoll(
                               eventId: post.eventId,
                               postId: post.id,
                               optionId: optId,
                               userLocation: userLoc,
                             );
-                            if (!ok) {
+                            if (!res.allowed) {
+                              if (event != null) {
+                                VerificationRestrictedSheet.show(
+                                  context,
+                                  event: event,
+                                  distanceMeters: res.distanceMeters ?? event.distanceFromUser(userLoc),
+                                  customTitle: 'On-Site Poll Voting Required',
+                                  customMessage: 'The sole purpose of GroundTruth is to verify ground reality. Only eyewitnesses physically located inside ${event.tagName} (${event.formattedRadius} radius) can participate in polls.',
+                                  onOpenComments: () => CommentsSheet.show(context, event, post),
+                                );
+                              } else {
+                                ScaffoldMessenger.of(context).showSnackBar(
+                                  SnackBar(
+                                    backgroundColor: AppColors.alertRed,
+                                    content: Text(res.message ?? 'Only eyewitnesses on-site can vote in polls.'),
+                                  ),
+                                );
+                              }
+                            } else {
                               ScaffoldMessenger.of(context).showSnackBar(
                                 const SnackBar(
-                                  content: Text('Only eyewitnesses on-site can vote in polls.'),
+                                  backgroundColor: Color(0xFF0D652D),
+                                  content: Text('Eyewitness poll vote recorded! (+15 XP)'),
                                 ),
                               );
                             }

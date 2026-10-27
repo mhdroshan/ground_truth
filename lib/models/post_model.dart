@@ -26,6 +26,12 @@ class PollOption {
       votes: (json['votes'] as num?)?.toInt() ?? 0,
     );
   }
+
+  Map<String, dynamic> toJson() => {
+    'id': id,
+    'text': text,
+    'votes': votes,
+  };
 }
 
 class VerificationDetails {
@@ -167,6 +173,16 @@ class PostModel {
       options = (json['pollOptions'] as List).map((o) => PollOption.fromJson(o)).toList();
     }
 
+    String? userVotedOption = json['userVotedPollOptionId'] as String? ?? json['userVotedOptionId'] as String?;
+    if (userVotedOption == null && json['pollVoters'] is List) {
+      for (final voter in json['pollVoters']) {
+        if (voter is Map && voter['optionId'] != null) {
+          userVotedOption = voter['optionId']?.toString();
+          break;
+        }
+      }
+    }
+
     List<double>? waveform;
     if (json['waveform'] is List) {
       waveform = (json['waveform'] as List).map((w) => (w as num).toDouble()).toList();
@@ -192,6 +208,7 @@ class PostModel {
       audioDurationSeconds: (json['audioDurationSeconds'] as num?)?.toInt(),
       waveform: waveform,
       pollOptions: options,
+      userVotedPollOptionId: userVotedOption,
       createdAt: DateTime.tryParse(json['createdAt'] ?? '') ?? DateTime.now(),
       location: GeoPoint(lat, lng),
       locationDisplayName: json['locationDisplayName'] ?? 'On-Site Verification Point',
@@ -201,6 +218,64 @@ class PostModel {
       downvotes: (json['downvotes'] as num?)?.toInt() ?? 0,
       userVote: (json['userVote'] as num?)?.toInt() ?? 0,
       commentsCount: (json['commentsCount'] as num?)?.toInt() ?? 0,
+    );
+  }
+
+  PostModel copyWith({
+    String? id,
+    String? eventId,
+    String? title,
+    String? tagName,
+    String? authorId,
+    String? authorName,
+    String? authorAvatar,
+    int? authorTrustScore,
+    bool? authorIsVerifiedJournalist,
+    PostType? type,
+    String? content,
+    String? mediaUrl,
+    String? videoThumbnailUrl,
+    int? audioDurationSeconds,
+    List<double>? waveform,
+    List<PollOption>? pollOptions,
+    String? userVotedPollOptionId,
+    DateTime? createdAt,
+    GeoPoint? location,
+    String? locationDisplayName,
+    double? distanceFromEpicenterMeters,
+    VerificationDetails? verification,
+    int? upvotes,
+    int? downvotes,
+    int? userVote,
+    int? commentsCount,
+  }) {
+    return PostModel(
+      id: id ?? this.id,
+      eventId: eventId ?? this.eventId,
+      title: title ?? this.title,
+      tagName: tagName ?? this.tagName,
+      authorId: authorId ?? this.authorId,
+      authorName: authorName ?? this.authorName,
+      authorAvatar: authorAvatar ?? this.authorAvatar,
+      authorTrustScore: authorTrustScore ?? this.authorTrustScore,
+      authorIsVerifiedJournalist: authorIsVerifiedJournalist ?? this.authorIsVerifiedJournalist,
+      type: type ?? this.type,
+      content: content ?? this.content,
+      mediaUrl: mediaUrl ?? this.mediaUrl,
+      videoThumbnailUrl: videoThumbnailUrl ?? this.videoThumbnailUrl,
+      audioDurationSeconds: audioDurationSeconds ?? this.audioDurationSeconds,
+      waveform: waveform ?? this.waveform,
+      pollOptions: pollOptions ?? this.pollOptions,
+      userVotedPollOptionId: userVotedPollOptionId ?? this.userVotedPollOptionId,
+      createdAt: createdAt ?? this.createdAt,
+      location: location ?? this.location,
+      locationDisplayName: locationDisplayName ?? this.locationDisplayName,
+      distanceFromEpicenterMeters: distanceFromEpicenterMeters ?? this.distanceFromEpicenterMeters,
+      verification: verification ?? this.verification,
+      upvotes: upvotes ?? this.upvotes,
+      downvotes: downvotes ?? this.downvotes,
+      userVote: userVote ?? this.userVote,
+      commentsCount: commentsCount ?? this.commentsCount,
     );
   }
 

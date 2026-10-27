@@ -147,7 +147,13 @@ router.post('/', validateGeofence, async (req, res) => {
       videoThumbnailUrl,
       audioDurationSeconds,
       waveform,
-      pollOptions,
+      pollOptions: (type && type.toUpperCase() === 'POLL' && Array.isArray(pollOptions))
+        ? pollOptions.map((opt, idx) => ({
+            id: opt.id || `opt_${idx + 1}`,
+            text: typeof opt === 'string' ? opt : (opt.text || ''),
+            votes: typeof opt.votes === 'number' ? opt.votes : 0,
+          }))
+        : undefined,
       location: {
         type: 'Point',
         coordinates: [lng, lat],
@@ -175,6 +181,52 @@ router.post('/', validateGeofence, async (req, res) => {
   } catch (err) {
     console.error('Create post error:', err);
     res.status(500).json({ error: 'CREATE_POST_FAILED', message: err.message });
+  }
+});
+
+// POST /api/posts/:id/poll-vote - Submit verified eyewitness vote on poll (Requires on-site geofence)
+router.post('/:id/poll-vote', validateGeofence, async (req, res) => {
+  try {
+    if (!mongoose.Types.ObjectId.isValid(req.params.id)) {
+      return res.status(404).json({ error: 'NOT_FOUND', message: 'Post not found' });
+    }
+    const { optionId, userId } = req.body;
+    if (!optionId) {
+      return res.status(400).json({ error: 'MISSING_OPTION', message: 'optionId is required' });
+    }
+
+    const post = req.parentPost || await Post.findById(req.params.id);
+    if (!post) return res.status(404).json({ error: 'NOT_FOUND', message: 'Post not found' });
+
+    if (post.type !== 'POLL' || !post.pollOptions || post.pollOptions.length === 0) {
+      return res.status(400).json({ error: 'NOT_A_POLL', message: 'This post is not an active poll' });
+    }
+
+    const voterId = userId || 'user_dev_01';
+    if (post.pollVoters && post.pollVoters.some(v => v.userId === voterId)) {
+      return res.status(400).json({ error: 'ALREADY_VOTED', message: 'You have already participated in this poll' });
+    }
+
+    const option = post.pollOptions.find(o => o.id === optionId);
+    if (!option) {
+      return res.status(404).json({ error: 'OPTION_NOT_FOUND', message: 'Poll option not found' });
+    }
+
+    option.votes = (option.votes || 0) + 1;
+    if (!post.pollVoters) post.pollVoters = [];
+    post.pollVoters.push({ userId: voterId, optionId });
+
+    await post.save();
+    console.log(`✅ Stored poll vote on post ${post._id} for option ${optionId} by ${voterId}`);
+
+    res.json({
+      success: true,
+      data: post,
+      userVotedOptionId: optionId,
+    });
+  } catch (err) {
+    console.error('Poll vote error:', err);
+    res.status(500).json({ error: 'POLL_VOTE_FAILED', message: err.message });
   }
 });
 

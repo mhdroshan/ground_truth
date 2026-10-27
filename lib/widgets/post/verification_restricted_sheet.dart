@@ -7,18 +7,24 @@ class VerificationRestrictedSheet extends StatelessWidget {
   final EventModel event;
   final double distanceMeters;
   final VoidCallback? onOpenComments;
+  final String? customTitle;
+  final String? customMessage;
 
   const VerificationRestrictedSheet({
     super.key,
     required this.event,
     required this.distanceMeters,
     this.onOpenComments,
+    this.customTitle,
+    this.customMessage,
   });
 
   static void show(BuildContext context, {
     required EventModel event,
     required double distanceMeters,
     VoidCallback? onOpenComments,
+    String? customTitle,
+    String? customMessage,
   }) {
     showModalBottomSheet(
       context: context,
@@ -28,6 +34,8 @@ class VerificationRestrictedSheet extends StatelessWidget {
         event: event,
         distanceMeters: distanceMeters,
         onOpenComments: onOpenComments,
+        customTitle: customTitle,
+        customMessage: customMessage,
       ),
     );
   }
@@ -72,9 +80,9 @@ class VerificationRestrictedSheet extends StatelessWidget {
           const SizedBox(height: 16),
 
           // Title
-          const Text(
-            'On-Site Verification Required',
-            style: TextStyle(
+          Text(
+            customTitle ?? 'On-Site Verification Required',
+            style: const TextStyle(
               color: AppColors.primaryNavy,
               fontSize: 18,
               fontWeight: FontWeight.w800,
@@ -103,7 +111,8 @@ class VerificationRestrictedSheet extends StatelessWidget {
 
           // Mission Statement Explanation
           Text(
-            'The sole purpose of GroundTruth is to verify what really happens. To eliminate bot manipulation and rumors, only users physically located inside this event radius (${event.formattedRadius}) can like or dislike posts to verify ground truth.',
+            customMessage ??
+                'The sole purpose of GroundTruth is to verify what really happens. To eliminate bot manipulation and rumors, only users physically located inside this event radius (${event.formattedRadius}) can like, dislike, or participate in polls to verify ground truth.',
             textAlign: TextAlign.center,
             style: const TextStyle(
               color: AppColors.textSecondary,

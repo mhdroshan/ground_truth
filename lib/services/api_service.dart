@@ -8,14 +8,14 @@ import '../models/user_model.dart';
 import '../utils/geofence_math.dart';
 
 class ApiService {
-  // Default localhost URL (use 10.0.2.2 for Android simulator or your computer IP for real device)
-  static String baseUrl = 'http://localhost:5001/api';
+  // Remote production backend URL hosted on Render
+  static String baseUrl = 'https://ground-truth-yyir.onrender.com/api';
 
   static Future<bool> isBackendConnected() async {
     try {
       final response = await http
           .get(Uri.parse('$baseUrl/health'))
-          .timeout(const Duration(seconds: 2));
+          .timeout(const Duration(seconds: 6));
       if (response.statusCode == 200) {
         final data = json.decode(response.body);
         return data['database'] == 'CONNECTED';
@@ -51,7 +51,7 @@ class ApiService {
     try {
       final response = await http
           .get(Uri.parse('$baseUrl/posts/$postId/comments'))
-          .timeout(const Duration(seconds: 3));
+          .timeout(const Duration(seconds: 8));
 
       if (response.statusCode == 200) {
         final body = json.decode(response.body);
@@ -94,7 +94,7 @@ class ApiService {
               'deviceRooted': false,
             }),
           )
-          .timeout(const Duration(seconds: 4));
+          .timeout(const Duration(seconds: 8));
 
       if (response.statusCode == 201) {
         final body = json.decode(response.body);
@@ -113,7 +113,7 @@ class ApiService {
     try {
       final response = await http
           .get(Uri.parse('$baseUrl/tags'))
-          .timeout(const Duration(seconds: 4));
+          .timeout(const Duration(seconds: 8));
 
       if (response.statusCode == 200) {
         final body = json.decode(response.body);
@@ -165,7 +165,7 @@ class ApiService {
               ...?bannerImageUrl != null ? {'bannerImageUrl': bannerImageUrl} : null,
             }),
           )
-          .timeout(const Duration(seconds: 5));
+          .timeout(const Duration(seconds: 8));
 
       if (response.statusCode == 200 || response.statusCode == 201) {
         final data = json.decode(response.body);
@@ -205,6 +205,7 @@ class ApiService {
           'videoThumbnailUrl': post.videoThumbnailUrl,
           'audioDurationSeconds': post.audioDurationSeconds,
           'waveform': post.waveform,
+          'pollOptions': post.pollOptions?.map((o) => o.toJson()).toList(),
           'locationDisplayName': post.locationDisplayName,
           'latitude': latitude,
           'longitude': longitude,
@@ -238,6 +239,49 @@ class ApiService {
     return null;
   }
 
+  /// Submit verified poll vote to database with geofence validation
+  static Future<PostModel?> submitPollVote({
+    required String postId,
+    required String optionId,
+    required String userId,
+    required double latitude,
+    required double longitude,
+    double gpsAccuracy = 3.5,
+  }) async {
+    try {
+      final response = await http.post(
+        Uri.parse('$baseUrl/posts/$postId/poll-vote'),
+        headers: {'Content-Type': 'application/json'},
+        body: json.encode({
+          'optionId': optionId,
+          'userId': userId,
+          'latitude': latitude,
+          'longitude': longitude,
+          'gpsAccuracy': gpsAccuracy,
+          'mockLocationDetected': false,
+          'deviceRooted': false,
+        }),
+      ).timeout(const Duration(seconds: 8));
+
+      if (response.statusCode == 200 || response.statusCode == 201) {
+        final body = json.decode(response.body);
+        if (body['success'] == true && body['data'] != null) {
+          final updatedPost = PostModel.fromJson(body['data']);
+          return updatedPost.copyWith(
+            userVotedPollOptionId: body['userVotedOptionId']?.toString() ?? optionId,
+          );
+        }
+      } else {
+        if (kDebugMode) {
+          print('ApiService submitPollVote failed: ${response.statusCode} - ${response.body}');
+        }
+      }
+    } catch (e) {
+      if (kDebugMode) print('ApiService submitPollVote error: $e');
+    }
+    return null;
+  }
+
   // --- Authentication Methods ---
 
   static Future<AuthResponse> login({
@@ -254,7 +298,7 @@ class ApiService {
               'password': password,
             }),
           )
-          .timeout(const Duration(seconds: 4));
+          .timeout(const Duration(seconds: 8));
 
       final data = json.decode(response.body);
 
@@ -304,7 +348,7 @@ class ApiService {
               'tier': tier,
             }),
           )
-          .timeout(const Duration(seconds: 4));
+          .timeout(const Duration(seconds: 8));
 
       final data = json.decode(response.body);
 
@@ -343,7 +387,7 @@ class ApiService {
               'Authorization': 'Bearer $token',
             },
           )
-          .timeout(const Duration(seconds: 3));
+          .timeout(const Duration(seconds: 8));
 
       if (response.statusCode == 200) {
         final data = json.decode(response.body);
