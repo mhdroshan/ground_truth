@@ -26,22 +26,32 @@ class _AlertsScreenState extends State<AlertsScreen> {
         backgroundColor: Colors.white,
         elevation: 0,
         leading: IconButton(
-          icon: const Icon(Icons.menu, color: AppColors.primaryNavy, size: 24),
-          onPressed: () {
-            ScaffoldMessenger.of(context).showSnackBar(
-              const SnackBar(content: Text('Menu opened')),
-            );
-          },
+          icon: const Icon(Icons.arrow_back, color: AppColors.primaryNavy),
+          onPressed: () => Navigator.pop(context),
         ),
-        titleSpacing: 0,
-        title: const Text(
-          'GroundTruth',
-          style: TextStyle(
-            color: AppColors.primaryNavy,
-            fontSize: 20,
-            fontWeight: FontWeight.w800,
-            letterSpacing: -0.4,
-          ),
+        title: Row(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            ClipRRect(
+              borderRadius: BorderRadius.circular(6),
+              child: Image.asset(
+                'assets/images/logo.png',
+                width: 24,
+                height: 24,
+                fit: BoxFit.cover,
+              ),
+            ),
+            const SizedBox(width: 8),
+            const Text(
+              'GroundTruth Alerts',
+              style: TextStyle(
+                color: AppColors.primaryNavy,
+                fontSize: 19,
+                fontWeight: FontWeight.w800,
+                letterSpacing: -0.4,
+              ),
+            ),
+          ],
         ),
         actions: [
           IconButton(

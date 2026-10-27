@@ -43,16 +43,13 @@ class _HomeFeedScreenState extends State<HomeFeedScreen> {
         backgroundColor: Colors.white,
         title: Row(
           children: [
-            Container(
-              padding: const EdgeInsets.all(6),
-              decoration: BoxDecoration(
-                color: const Color(0xFFD0E1FD),
-                borderRadius: BorderRadius.circular(8),
-              ),
-              child: const Icon(
-                Icons.security_rounded,
-                color: AppColors.primaryNavy,
-                size: 20,
+            ClipRRect(
+              borderRadius: BorderRadius.circular(8),
+              child: Image.asset(
+                'assets/images/logo.png',
+                width: 30,
+                height: 30,
+                fit: BoxFit.cover,
               ),
             ),
             const SizedBox(width: 10),
