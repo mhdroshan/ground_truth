@@ -254,22 +254,25 @@ class _HomeFeedScreenState extends State<HomeFeedScreen> {
                               event: event,
                               distanceMeters: res.distanceMeters ?? event.distanceFromUser(userLoc),
                               customTitle: 'On-Site Poll Voting Required',
-                              customMessage: 'The sole purpose of GroundTruth is to verify ground reality. Only eyewitnesses physically located inside ${event.tagName} (${event.formattedRadius} radius) can participate in polls.',
+                              customMessage: 'The sole purpose of GroundTruth is to verify ground reality. Only eyewitnesses physically located inside ${event.tagName} (${event.formattedRadius} radius) can participate in polls. Others can only view results.',
                               onOpenComments: () => CommentsSheet.show(context, event, post),
                             );
                           } else {
                             ScaffoldMessenger.of(context).showSnackBar(
                               SnackBar(
                                 backgroundColor: AppColors.alertRed,
-                                content: Text(res.message ?? 'Only eyewitnesses on-site can vote in polls.'),
+                                content: Text(res.message ?? 'Only eyewitnesses on-site can vote in polls. Others can only view results.'),
                               ),
                             );
                           }
                         } else {
                           ScaffoldMessenger.of(context).showSnackBar(
-                            const SnackBar(
-                              backgroundColor: Color(0xFF0D652D),
-                              content: Text('Eyewitness poll vote recorded! (+15 XP)'),
+                            SnackBar(
+                              duration: const Duration(seconds: 2),
+                              backgroundColor: const Color(0xFF0D652D),
+                              content: Text(res.isChanged
+                                  ? 'Eyewitness poll vote updated!'
+                                  : 'Eyewitness poll vote recorded! (+15 XP)'),
                             ),
                           );
                         }

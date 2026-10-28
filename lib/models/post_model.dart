@@ -32,6 +32,18 @@ class PollOption {
     'text': text,
     'votes': votes,
   };
+
+  PollOption copyWith({
+    String? id,
+    String? text,
+    int? votes,
+  }) {
+    return PollOption(
+      id: id ?? this.id,
+      text: text ?? this.text,
+      votes: votes ?? this.votes,
+    );
+  }
 }
 
 class VerificationDetails {
@@ -174,11 +186,16 @@ class PostModel {
     }
 
     String? userVotedOption = json['userVotedPollOptionId'] as String? ?? json['userVotedOptionId'] as String?;
-    if (userVotedOption == null && json['pollVoters'] is List) {
+    if (userVotedOption == null && json['pollVoters'] is List && currentUserId != null) {
       for (final voter in json['pollVoters']) {
         if (voter is Map && voter['optionId'] != null) {
-          userVotedOption = voter['optionId']?.toString();
-          break;
+          final voterId = voter['userId']?.toString();
+          if (voterId == currentUserId ||
+              ((currentUserId == 'user_dev_01' || currentUserId == 'guest_user') &&
+               (voterId == 'user_dev_01' || voterId == 'guest_user'))) {
+            userVotedOption = voter['optionId']?.toString();
+            break;
+          }
         }
       }
     }

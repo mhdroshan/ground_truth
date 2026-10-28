@@ -24,6 +24,7 @@ class VoteResult {
   final EventModel? event;
   final int userVote;
   final bool isRemoved;
+  final bool isChanged;
 
   const VoteResult({
     required this.allowed,
@@ -32,6 +33,7 @@ class VoteResult {
     this.event,
     this.userVote = 0,
     this.isRemoved = false,
+    this.isChanged = false,
   });
 
   static const success = VoteResult(allowed: true);
@@ -1507,84 +1509,136 @@ class AppState extends ChangeNotifier {
     );
   }
 
-  /// Vote in an interactive poll (Strictly requires event presence)
+  /// Vote in an interactive poll (Strictly requires event presence; changeable anytime)
   VoteResult votePoll({
     required String eventId,
     required String postId,
     required String optionId,
     required GeoPoint userLocation,
   }) {
-    final eventIndex = _events.indexWhere((e) => e.id == eventId);
-    if (eventIndex == -1) {
-      return const VoteResult(allowed: false, message: 'Tag / Event not found');
+    PostModel? post;
+    String resolvedEventId = eventId;
+    int index = -1;
+
+    if (_postsByEvent.containsKey(eventId)) {
+      final idx = _postsByEvent[eventId]!.indexWhere((p) => p.id == postId);
+      if (idx != -1) {
+        post = _postsByEvent[eventId]![idx];
+        index = idx;
+      }
     }
-    final event = _events[eventIndex];
-    if (!event.isUserInside(userLocation)) {
-      final double distanceMeters = event.distanceFromUser(userLocation);
-      return VoteResult(
-        allowed: false,
-        message: 'Only eyewitnesses physically inside ${event.tagName} (${event.formattedRadius}) can participate in polls.',
-        distanceMeters: distanceMeters,
-        event: event,
-      );
+    if (post == null) {
+      for (final entry in _postsByEvent.entries) {
+        final idx = entry.value.indexWhere((p) => p.id == postId);
+        if (idx != -1) {
+          post = entry.value[idx];
+          resolvedEventId = entry.key;
+          index = idx;
+          break;
+        }
+      }
     }
 
-    final posts = _postsByEvent[eventId];
-    if (posts == null) {
+    if (post == null) {
       return const VoteResult(allowed: false, message: 'Post not found');
     }
 
-    final index = posts.indexWhere((p) => p.id == postId);
-    if (index == -1) {
-      return const VoteResult(allowed: false, message: 'Post not found');
-    }
-
-    final post = posts[index];
-    if (post.pollOptions == null) {
+    if (post.pollOptions == null || post.pollOptions!.isEmpty) {
       return const VoteResult(allowed: false, message: 'Not an active poll');
     }
-    // Disallow author voting on their own poll
-    if (isCurrentUserPost(post)) {
-      return const VoteResult(allowed: false, message: 'You cannot participate in your own poll');
-    }
-    if (post.userVotedPollOptionId != null) {
-      return const VoteResult(allowed: false, message: 'You have already voted in this poll');
+
+    EventModel? event = _events.cast<EventModel?>().firstWhere(
+      (e) => e?.id == resolvedEventId || e?.id == eventId || e?.id == post?.eventId,
+      orElse: () => null,
+    );
+    event ??= getEventForPost(post);
+
+    // Geofence enforcement: only users physically inside geofence boundary can vote
+    if (event != null) {
+      if (!event.isUserInside(userLocation)) {
+        final double distanceMeters = event.distanceFromUser(userLocation);
+        return VoteResult(
+          allowed: false,
+          message: 'Only eyewitnesses physically inside ${event.tagName} (${event.formattedRadius}) can participate in polls. Others can only view results.',
+          distanceMeters: distanceMeters,
+          event: event,
+        );
+      }
+    } else {
+      final double distanceMeters = GeofenceMath.distanceBetweenPoints(userLocation, post.location);
+      if (distanceMeters > 2000.0) {
+        return VoteResult(
+          allowed: false,
+          message: 'Only eyewitnesses physically within 2.0 km of the poll can participate. Others can only view results.',
+          distanceMeters: distanceMeters,
+        );
+      }
     }
 
     final optIndex = post.pollOptions!.indexWhere((o) => o.id == optionId);
-    if (optIndex != -1) {
-      post.pollOptions![optIndex].votes++;
-      final updated = post.copyWith(
-        pollOptions: post.pollOptions,
-        userVotedPollOptionId: optionId,
-      );
-      posts[index] = updated;
+    if (optIndex == -1) {
+      return const VoteResult(allowed: false, message: 'Poll option not found');
+    }
 
+    final previousOptionId = post.userVotedPollOptionId;
+    if (previousOptionId == optionId) {
+      // User tapped the exact same option they already voted for
+      return const VoteResult(allowed: true, isChanged: false);
+    }
+
+    final bool isChange = previousOptionId != null;
+
+    // Create mutable copies of poll options
+    final newOptions = post.pollOptions!.map((o) => o.copyWith()).toList();
+
+    if (isChange) {
+      final prevIndex = newOptions.indexWhere((o) => o.id == previousOptionId);
+      if (prevIndex != -1) {
+        newOptions[prevIndex].votes = (newOptions[prevIndex].votes - 1).clamp(0, 999999);
+      }
+    }
+
+    final targetIndex = newOptions.indexWhere((o) => o.id == optionId);
+    if (targetIndex != -1) {
+      newOptions[targetIndex].votes++;
+    }
+
+    final updated = post.copyWith(
+      pollOptions: newOptions,
+      userVotedPollOptionId: optionId,
+    );
+    _postsByEvent[resolvedEventId]![index] = updated;
+
+    if (!isChange) {
       _awardActivity(xpGain: 15, verificationsDelta: 1);
-      notifyListeners();
+    }
+    notifyListeners();
 
-      // Trigger asynchronous sync to backend API
-      ApiService.submitPollVote(
-        postId: postId,
-        optionId: optionId,
-        userId: _currentUser.id,
-        latitude: userLocation.latitude,
-        longitude: userLocation.longitude,
-      ).then((remotePost) {
-        if (remotePost != null) {
-          final curIdx = posts.indexWhere((p) => p.id == postId);
+    // Trigger asynchronous sync to backend API
+    ApiService.submitPollVote(
+      postId: postId,
+      optionId: optionId,
+      userId: _currentUser.id,
+      latitude: userLocation.latitude,
+      longitude: userLocation.longitude,
+    ).then((remotePost) {
+      if (remotePost != null) {
+        final curList = _postsByEvent[resolvedEventId];
+        if (curList != null) {
+          final curIdx = curList.indexWhere((p) => p.id == postId);
           if (curIdx != -1) {
-            posts[curIdx] = remotePost;
+            curList[curIdx] = remotePost.copyWith(
+              userVotedPollOptionId: optionId,
+            );
             notifyListeners();
           }
         }
-      }).catchError((err) {
-        if (kDebugMode) print('Background submitPollVote error: $err');
-      });
+      }
+    }).catchError((err) {
+      if (kDebugMode) print('Background submitPollVote error: $err');
+    });
 
-      return VoteResult.success;
-    }
-    return const VoteResult(allowed: false, message: 'Poll option not found');
+    return VoteResult(allowed: true, isChanged: isChange);
   }
 
   /// Add post (Strictly requires user to be physically inside the event radius)

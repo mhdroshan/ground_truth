@@ -279,9 +279,11 @@ class ApiService {
       if (response.statusCode == 200 || response.statusCode == 201) {
         final body = json.decode(response.body);
         if (body['success'] == true && body['data'] != null) {
-          final updatedPost = PostModel.fromJson(body['data']);
+          final updatedPost = PostModel.fromJson(body['data'], currentUserId: userId);
           return updatedPost.copyWith(
-            userVotedPollOptionId: body['userVotedOptionId']?.toString() ?? optionId,
+            userVotedPollOptionId: body['userVotedOptionId']?.toString() ??
+                body['data']?['userVotedPollOptionId']?.toString() ??
+                optionId,
           );
         }
       } else {

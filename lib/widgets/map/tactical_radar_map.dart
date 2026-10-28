@@ -3,13 +3,27 @@ import 'package:flutter/material.dart';
 import 'package:flutter_map/flutter_map.dart';
 import 'package:latlong2/latlong.dart';
 import '../../models/event_model.dart';
+import '../../services/google_places_service.dart';
 import '../../theme/app_colors.dart';
 import '../../utils/geofence_math.dart';
 
 enum MapTileTheme {
-  voyager('Tactical Light', 'https://basemaps.cartocdn.com/rastertiles/voyager/{z}/{x}/{y}.png'),
-  street('Street Map', 'https://tile.openstreetmap.org/{z}/{x}/{y}.png'),
-  satellite('Satellite', 'https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}');
+  googleRoadmap(
+    'Google Maps',
+    'https://mt1.google.com/vt/lyrs=m&x={x}&y={y}&z={z}',
+  ),
+  googleHybrid(
+    'Google Satellite',
+    'https://mt1.google.com/vt/lyrs=y&x={x}&y={y}&z={z}',
+  ),
+  googleTerrain(
+    'Google Terrain',
+    'https://mt1.google.com/vt/lyrs=p&x={x}&y={y}&z={z}',
+  ),
+  osm(
+    'OpenStreetMap',
+    'https://tile.openstreetmap.org/{z}/{x}/{y}.png',
+  );
 
   final String label;
   final String urlTemplate;
@@ -46,7 +60,7 @@ class _TacticalRadarMapState extends State<TacticalRadarMap>
     with SingleTickerProviderStateMixin {
   late final MapController _mapController;
   late final AnimationController _pulseController;
-  MapTileTheme _currentTheme = MapTileTheme.voyager;
+  MapTileTheme _currentTheme = MapTileTheme.googleRoadmap;
   bool _showLayerPicker = false;
 
   @override
@@ -115,6 +129,14 @@ class _TacticalRadarMapState extends State<TacticalRadarMap>
     _mapController.move(_mapController.camera.center, (currentZoom - 1).clamp(2.0, 18.0));
   }
 
+  String _buildTileUrl(MapTileTheme theme) {
+    var url = theme.urlTemplate;
+    if (theme != MapTileTheme.osm && GooglePlacesService.apiKey.isNotEmpty) {
+      url += '&key=${GooglePlacesService.apiKey}';
+    }
+    return url;
+  }
+
   @override
   Widget build(BuildContext context) {
     final center = _activeCenter;
@@ -142,7 +164,7 @@ class _TacticalRadarMapState extends State<TacticalRadarMap>
               initialCenter: centerLatLng,
               initialZoom: initialZoom,
               minZoom: 2.0,
-              maxZoom: 18.0,
+              maxZoom: 20.0,
               interactionOptions: InteractionOptions(
                 flags: widget.isInteractive ? InteractiveFlag.all : InteractiveFlag.none,
               ),
@@ -155,11 +177,11 @@ class _TacticalRadarMapState extends State<TacticalRadarMap>
               },
             ),
             children: [
-              // 1. Live Tile Layer
+              // 1. Live Google Maps / OSM Tile Layer
               TileLayer(
-                urlTemplate: _currentTheme.urlTemplate,
+                urlTemplate: _buildTileUrl(_currentTheme),
                 userAgentPackageName: 'com.groundtruth.app',
-                maxZoom: 19,
+                maxZoom: 20,
               ),
 
               // 2. Geofence Boundary Circles & Live Radar Wave

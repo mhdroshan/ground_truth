@@ -68,6 +68,13 @@ router.get('/', async (req, res) => {
       } else {
         obj.userVote = 0;
       }
+
+      if (obj.pollVoters && Array.isArray(obj.pollVoters)) {
+        const myPollVote = obj.pollVoters.find(v => v.userId === reqUserId || (reqUserId !== 'user_dev_01' && v.userId === 'user_dev_01'));
+        obj.userVotedPollOptionId = myPollVote ? myPollVote.optionId : null;
+      } else {
+        obj.userVotedPollOptionId = null;
+      }
       return obj;
     });
 
@@ -97,7 +104,19 @@ router.get('/nearby', async (req, res) => {
       },
     }).limit(50);
 
-    res.json({ success: true, count: posts.length, data: posts });
+    const reqUserId = req.query.userId || req.headers['x-user-id'] || 'user_dev_01';
+    const formatted = posts.map(p => {
+      const obj = p.toObject();
+      if (obj.pollVoters && Array.isArray(obj.pollVoters)) {
+        const myPollVote = obj.pollVoters.find(v => v.userId === reqUserId || (reqUserId !== 'user_dev_01' && v.userId === 'user_dev_01'));
+        obj.userVotedPollOptionId = myPollVote ? myPollVote.optionId : null;
+      } else {
+        obj.userVotedPollOptionId = null;
+      }
+      return obj;
+    });
+
+    res.json({ success: true, count: formatted.length, data: formatted });
   } catch (err) {
     res.status(500).json({ error: 'NEARBY_QUERY_FAILED', message: err.message });
   }
@@ -125,6 +144,13 @@ router.get('/:id', async (req, res) => {
       obj.userVote = myVote ? myVote.direction : 0;
     } else {
       obj.userVote = 0;
+    }
+
+    if (obj.pollVoters && Array.isArray(obj.pollVoters)) {
+      const myPollVote = obj.pollVoters.find(v => v.userId === reqUserId || (reqUserId !== 'user_dev_01' && v.userId === 'user_dev_01'));
+      obj.userVotedPollOptionId = myPollVote ? myPollVote.optionId : null;
+    } else {
+      obj.userVotedPollOptionId = null;
     }
     res.json({ success: true, data: obj });
   } catch (err) {
@@ -256,34 +282,44 @@ router.post('/:id/poll-vote', validateGeofence, async (req, res) => {
     }
 
     const voterId = userId || 'user_dev_01';
-    const isAuthor = post.author && (
-      post.author.userId === voterId ||
-      ((voterId === 'user_dev_01' || voterId === 'guest_user') &&
-       (post.author.userId === 'user_dev_01' || post.author.userId === 'guest_user'))
-    );
-    if (isAuthor) {
-      return res.status(403).json({ error: 'CANNOT_VOTE_OWN_POST', message: 'You cannot participate in your own poll' });
-    }
-    if (post.pollVoters && post.pollVoters.some(v => v.userId === voterId)) {
-      return res.status(400).json({ error: 'ALREADY_VOTED', message: 'You have already participated in this poll' });
-    }
 
     const option = post.pollOptions.find(o => o.id === optionId);
     if (!option) {
       return res.status(404).json({ error: 'OPTION_NOT_FOUND', message: 'Poll option not found' });
     }
 
-    option.votes = (option.votes || 0) + 1;
     if (!post.pollVoters) post.pollVoters = [];
-    post.pollVoters.push({ userId: voterId, optionId });
+
+    const existingVoterIndex = post.pollVoters.findIndex(v => v.userId === voterId);
+    let isChanged = false;
+
+    if (existingVoterIndex !== -1) {
+      const prevOptionId = post.pollVoters[existingVoterIndex].optionId;
+      if (prevOptionId !== optionId) {
+        isChanged = true;
+        const prevOption = post.pollOptions.find(o => o.id === prevOptionId);
+        if (prevOption && prevOption.votes > 0) {
+          prevOption.votes = Math.max(0, prevOption.votes - 1);
+        }
+        option.votes = (option.votes || 0) + 1;
+        post.pollVoters[existingVoterIndex].optionId = optionId;
+      }
+    } else {
+      option.votes = (option.votes || 0) + 1;
+      post.pollVoters.push({ userId: voterId, optionId });
+    }
 
     await post.save();
-    console.log(`✅ Stored poll vote on post ${post._id} for option ${optionId} by ${voterId}`);
+    console.log(`✅ Stored poll vote on post ${post._id} for option ${optionId} by ${voterId} (isChanged: ${isChanged})`);
+
+    const postObj = post.toObject();
+    postObj.userVotedPollOptionId = optionId;
 
     res.json({
       success: true,
-      data: post,
+      data: postObj,
       userVotedOptionId: optionId,
+      isChanged,
     });
   } catch (err) {
     console.error('Poll vote error:', err);
