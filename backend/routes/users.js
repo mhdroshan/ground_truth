@@ -306,6 +306,102 @@ router.get('/:id', optionalAuth, async (req, res) => {
   }
 });
 
+// PUT /api/users/:id - Update user profile information
+router.put('/:id', optionalAuth, async (req, res) => {
+  try {
+    const targetId = req.params.id;
+    const { name, handle, email, avatarUrl, bio, location, organization } = req.body;
+
+    // Check seed journalists if modifying a seed account
+    if (SEED_JOURNALISTS[targetId]) {
+      if (name) SEED_JOURNALISTS[targetId].name = name.trim();
+      if (handle) {
+        let cleanHandle = handle.trim().toLowerCase();
+        if (!cleanHandle.startsWith('@')) cleanHandle = `@${cleanHandle}`;
+        SEED_JOURNALISTS[targetId].handle = cleanHandle;
+      }
+      if (avatarUrl) SEED_JOURNALISTS[targetId].avatarUrl = avatarUrl;
+      if (bio !== undefined) SEED_JOURNALISTS[targetId].bio = bio;
+      if (location !== undefined) SEED_JOURNALISTS[targetId].location = location;
+      if (organization !== undefined) SEED_JOURNALISTS[targetId].organization = organization;
+
+      return res.json({
+        success: true,
+        message: 'Profile updated successfully.',
+        user: SEED_JOURNALISTS[targetId],
+      });
+    }
+
+    if (isMongoConnected()) {
+      let query;
+      if (mongoose.Types.ObjectId.isValid(targetId)) {
+        query = { _id: targetId };
+      } else {
+        query = { $or: [{ _id: targetId }, { handle: targetId }] };
+      }
+
+      const updates = {};
+      if (name) updates.name = name.trim();
+      if (handle) {
+        let cleanHandle = handle.trim().toLowerCase();
+        if (!cleanHandle.startsWith('@')) cleanHandle = `@${cleanHandle}`;
+        updates.handle = cleanHandle;
+      }
+      if (email) updates.email = email.trim().toLowerCase();
+      if (avatarUrl) updates.avatarUrl = avatarUrl;
+      if (bio !== undefined) updates.bio = bio;
+      if (location !== undefined) updates.location = location;
+      if (organization !== undefined) updates.organization = organization;
+
+      const updatedUser = await User.findOneAndUpdate(query, { $set: updates }, { new: true });
+      if (updatedUser) {
+        // Also update posts authored by this user
+        try {
+          const postUpdates = {};
+          if (name) postUpdates['author.name'] = name.trim();
+          if (avatarUrl) postUpdates['author.avatar'] = avatarUrl;
+          if (Object.keys(postUpdates).length > 0) {
+            await Post.updateMany(
+              {
+                $or: [
+                  { 'author.userId': updatedUser._id.toString() },
+                  { 'author.id': updatedUser._id.toString() },
+                ],
+              },
+              { $set: postUpdates }
+            );
+          }
+        } catch (_) {}
+
+        return res.json({
+          success: true,
+          message: 'Profile updated successfully.',
+          user: updatedUser.toPublicJSON(),
+        });
+      }
+    }
+
+    // In-memory or fallback
+    return res.json({
+      success: true,
+      message: 'Profile updated successfully (local).',
+      user: {
+        _id: targetId,
+        id: targetId,
+        name: name || 'Eyewitness',
+        handle: handle || '@eyewitness',
+        email: email || '',
+        avatarUrl: avatarUrl || '',
+        bio: bio || '',
+        location: location || '',
+        organization: organization || '',
+      },
+    });
+  } catch (err) {
+    res.status(500).json({ error: 'UPDATE_PROFILE_FAILED', message: err.message });
+  }
+});
+
 // POST /api/users/:id/follow - Toggle follow status
 router.post('/:id/follow', optionalAuth, async (req, res) => {
   try {

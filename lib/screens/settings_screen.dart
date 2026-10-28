@@ -1,7 +1,10 @@
+import 'dart:ui';
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import '../providers/app_state.dart';
 import '../theme/app_colors.dart';
+import '../widgets/common/safe_image.dart';
+import 'edit_personal_info_screen.dart';
 import 'login_screen.dart';
 
 class SettingsScreen extends StatefulWidget {
@@ -24,19 +27,19 @@ class _SettingsScreenState extends State<SettingsScreen> {
     final currentUser = appState.currentUser;
 
     return Scaffold(
-      backgroundColor: const Color(0xFFF8FAFC),
+      backgroundColor: AppColors.background,
       appBar: AppBar(
-        backgroundColor: Colors.white,
+        backgroundColor: Colors.white.withValues(alpha: 0.85),
         elevation: 0,
         leading: IconButton(
-          icon: const Icon(Icons.arrow_back, color: AppColors.primaryNavy),
+          icon: const Icon(Icons.arrow_back_rounded, color: AppColors.primaryNavy),
           onPressed: () => Navigator.pop(context),
         ),
         title: Row(
           mainAxisSize: MainAxisSize.min,
           children: [
             ClipRRect(
-              borderRadius: BorderRadius.circular(6),
+              borderRadius: BorderRadius.circular(8),
               child: Image.asset(
                 'assets/images/logo.png',
                 width: 24,
@@ -49,8 +52,8 @@ class _SettingsScreenState extends State<SettingsScreen> {
               'GroundTruth Settings',
               style: TextStyle(
                 color: AppColors.primaryNavy,
-                fontSize: 19,
-                fontWeight: FontWeight.w800,
+                fontSize: 18,
+                fontWeight: FontWeight.w900,
                 letterSpacing: -0.4,
               ),
             ),
@@ -59,10 +62,21 @@ class _SettingsScreenState extends State<SettingsScreen> {
         actions: [
           Padding(
             padding: const EdgeInsets.only(right: 16),
-            child: CircleAvatar(
-              radius: 17,
-              backgroundColor: const Color(0xFFE2E8F0),
-              backgroundImage: NetworkImage(currentUser.avatarUrl),
+            child: GestureDetector(
+              onTap: () {
+                Navigator.push(
+                  context,
+                  MaterialPageRoute(builder: (context) => const EditPersonalInfoScreen()),
+                );
+              },
+              child: Tooltip(
+                message: 'Edit Personal Info',
+                child: CircleAvatar(
+                  radius: 17,
+                  backgroundColor: const Color(0xFFE2E8F0),
+                  backgroundImage: getUserAvatarProvider(currentUser.avatarUrl),
+                ),
+              ),
             ),
           ),
         ],
@@ -72,35 +86,131 @@ class _SettingsScreenState extends State<SettingsScreen> {
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            // Title Header (Exact Figma Screen 3)
+            // Title Header (Exaggerated Minimalism)
             const Text(
               'Settings',
               style: TextStyle(
                 color: AppColors.textPrimary,
-                fontSize: 24,
+                fontSize: 26,
                 fontWeight: FontWeight.w900,
-                letterSpacing: -0.5,
+                letterSpacing: -0.6,
               ),
             ),
-            const SizedBox(height: 6),
+            const SizedBox(height: 5),
             const Text(
-              'Manage your account preferences, verification tools, and privacy settings.',
+              'Manage cryptographic identity, geofencing radar, and privacy controls.',
               style: TextStyle(
                 color: AppColors.textSecondary,
                 fontSize: 13,
                 height: 1.35,
               ),
             ),
+            const SizedBox(height: 18),
+
+            // Bento Profile Quick Card with Photo Change Callout
+            Container(
+              padding: const EdgeInsets.all(16),
+              decoration: BoxDecoration(
+                color: Colors.white,
+                borderRadius: BorderRadius.circular(20),
+                border: Border.all(color: AppColors.bentoBorder, width: 0.9),
+                boxShadow: const [
+                  BoxShadow(
+                    color: Color(0x060F172A),
+                    blurRadius: 12,
+                    offset: Offset(0, 4),
+                  ),
+                ],
+              ),
+              child: Row(
+                children: [
+                  GestureDetector(
+                    onTap: () {
+                      Navigator.push(
+                        context,
+                        MaterialPageRoute(builder: (context) => const EditPersonalInfoScreen()),
+                      );
+                    },
+                    child: Stack(
+                      children: [
+                        CircleAvatar(
+                          radius: 28,
+                          backgroundColor: const Color(0xFFF1F5F9),
+                          backgroundImage: getUserAvatarProvider(currentUser.avatarUrl),
+                        ),
+                        Positioned(
+                          bottom: 0,
+                          right: 0,
+                          child: Container(
+                            padding: const EdgeInsets.all(4),
+                            decoration: const BoxDecoration(
+                              color: AppColors.primaryNavy,
+                              shape: BoxShape.circle,
+                            ),
+                            child: const Icon(Icons.camera_alt_rounded, size: 10, color: Colors.white),
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                  const SizedBox(width: 14),
+                  Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(
+                          currentUser.name,
+                          style: const TextStyle(
+                            color: AppColors.textPrimary,
+                            fontSize: 15.5,
+                            fontWeight: FontWeight.w800,
+                          ),
+                        ),
+                        const SizedBox(height: 2),
+                        Text(
+                          '${currentUser.handle} • ${currentUser.tier}',
+                          style: const TextStyle(
+                            color: AppColors.textSecondary,
+                            fontSize: 11.5,
+                            fontWeight: FontWeight.w500,
+                          ),
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
+                        ),
+                      ],
+                    ),
+                  ),
+                  OutlinedButton.icon(
+                    style: OutlinedButton.styleFrom(
+                      foregroundColor: AppColors.primaryNavy,
+                      side: const BorderSide(color: Color(0xFFCBD5E1), width: 1.0),
+                      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 7),
+                      minimumSize: Size.zero,
+                      tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+                    ),
+                    onPressed: () {
+                      Navigator.push(
+                        context,
+                        MaterialPageRoute(builder: (context) => const EditPersonalInfoScreen()),
+                      );
+                    },
+                    icon: const Icon(Icons.edit_outlined, size: 13),
+                    label: const Text('Edit', style: TextStyle(fontSize: 12, fontWeight: FontWeight.w800)),
+                  ),
+                ],
+              ),
+            ),
             const SizedBox(height: 22),
 
-            // SECTION 1: ACCOUNT & PROFILE (Exact Figma Screen 3)
+            // SECTION 1: ACCOUNT & PROFILE
             const Text(
-              'ACCOUNT & PROFILE',
+              'ACCOUNT & IDENTITY',
               style: TextStyle(
                 color: AppColors.textMuted,
-                fontSize: 11,
-                fontWeight: FontWeight.w800,
-                letterSpacing: 0.6,
+                fontSize: 10.5,
+                fontWeight: FontWeight.w900,
+                letterSpacing: 0.8,
               ),
             ),
             const SizedBox(height: 8),
@@ -108,13 +218,13 @@ class _SettingsScreenState extends State<SettingsScreen> {
             Container(
               decoration: BoxDecoration(
                 color: Colors.white,
-                borderRadius: BorderRadius.circular(16),
-                border: Border.all(color: const Color(0xFFE2E8F0)),
-                boxShadow: [
+                borderRadius: BorderRadius.circular(20),
+                border: Border.all(color: AppColors.bentoBorder, width: 0.9),
+                boxShadow: const [
                   BoxShadow(
-                    color: Colors.black.withValues(alpha: 0.02),
-                    blurRadius: 6,
-                    offset: const Offset(0, 2),
+                    color: Color(0x060F172A),
+                    blurRadius: 10,
+                    offset: Offset(0, 2),
                   ),
                 ],
               ),
@@ -122,36 +232,50 @@ class _SettingsScreenState extends State<SettingsScreen> {
                 children: [
                   _buildListTile(
                     icon: Icons.account_circle_outlined,
-                    title: 'Account',
+                    title: 'Account Identity',
                     subtitle: appState.isLoggedIn
-                        ? 'Logged in as ${currentUser.name}'
-                        : 'Not logged in • Tap to log in',
+                        ? 'Authenticated as ${currentUser.name}'
+                        : 'Guest Observer • Tap to sign in',
                     onTap: () {
-                      Navigator.push(
-                        context,
-                        MaterialPageRoute(builder: (context) => const LoginScreen()),
-                      );
+                      if (appState.isLoggedIn) {
+                        Navigator.push(
+                          context,
+                          MaterialPageRoute(builder: (context) => const EditPersonalInfoScreen()),
+                        );
+                      } else {
+                        Navigator.push(
+                          context,
+                          MaterialPageRoute(builder: (context) => const LoginScreen()),
+                        );
+                      }
                     },
                   ),
                   const Divider(height: 1, color: Color(0xFFF1F5F9), indent: 52),
                   _buildListTile(
                     icon: Icons.person_outline_rounded,
                     title: 'Personal Info',
-                    subtitle: 'Update your name and contact details',
-                    onTap: () {},
+                    subtitle: 'Update your name, photo, and contact details',
+                    onTap: () {
+                      Navigator.push(
+                        context,
+                        MaterialPageRoute(
+                          builder: (context) => const EditPersonalInfoScreen(),
+                        ),
+                      );
+                    },
                   ),
                   const Divider(height: 1, color: Color(0xFFF1F5F9), indent: 52),
                   _buildListTile(
                     icon: Icons.shield_outlined,
-                    title: 'Security',
-                    subtitle: 'Password, 2FA, and active sessions',
+                    title: 'Security & Keys',
+                    subtitle: 'Password, cryptographic keypairs, sessions',
                     onTap: () {},
                   ),
                   const Divider(height: 1, color: Color(0xFFF1F5F9), indent: 52),
                   _buildListTile(
                     icon: Icons.badge_outlined,
                     title: 'Linked Credentials',
-                    subtitle: 'Press passes and identity verification',
+                    subtitle: 'Press credentials and hardware attestation',
                     onTap: () {},
                   ),
                 ],
@@ -159,14 +283,14 @@ class _SettingsScreenState extends State<SettingsScreen> {
             ),
             const SizedBox(height: 24),
 
-            // SECTION 2: PRIVACY & VERIFICATION (Exact Figma Screen 3)
+            // SECTION 2: PRIVACY & VERIFICATION
             const Text(
-              'PRIVACY & VERIFICATION',
+              'GEOFENCING & PROTOCOL TOOLS',
               style: TextStyle(
                 color: AppColors.textMuted,
-                fontSize: 11,
-                fontWeight: FontWeight.w800,
-                letterSpacing: 0.6,
+                fontSize: 10.5,
+                fontWeight: FontWeight.w900,
+                letterSpacing: 0.8,
               ),
             ),
             const SizedBox(height: 8),
@@ -174,13 +298,13 @@ class _SettingsScreenState extends State<SettingsScreen> {
             Container(
               decoration: BoxDecoration(
                 color: Colors.white,
-                borderRadius: BorderRadius.circular(16),
-                border: Border.all(color: const Color(0xFFE2E8F0)),
-                boxShadow: [
+                borderRadius: BorderRadius.circular(20),
+                border: Border.all(color: AppColors.bentoBorder, width: 0.9),
+                boxShadow: const [
                   BoxShadow(
-                    color: Colors.black.withValues(alpha: 0.02),
-                    blurRadius: 6,
-                    offset: const Offset(0, 2),
+                    color: Color(0x060F172A),
+                    blurRadius: 10,
+                    offset: Offset(0, 2),
                   ),
                 ],
               ),
@@ -191,7 +315,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
                     padding: const EdgeInsets.fromLTRB(16, 16, 16, 6),
                     child: Row(
                       children: const [
-                        Icon(Icons.verified_user_outlined, color: Color(0xFF15803D), size: 20),
+                        Icon(Icons.verified_user_outlined, color: AppColors.verifiedGreen, size: 20),
                         SizedBox(width: 10),
                         Text(
                           'Verification Tools',
@@ -211,17 +335,17 @@ class _SettingsScreenState extends State<SettingsScreen> {
                     child: Column(
                       children: [
                         _buildSwitchRow(
-                          title: 'GPS Tagging',
+                          title: 'GNSS Radar Tagging',
                           value: _gpsTagging,
                           onChanged: (val) => setState(() => _gpsTagging = val),
                         ),
                         _buildSwitchRow(
-                          title: 'Device Integrity Check',
+                          title: 'Hardware Integrity Attestation',
                           value: _deviceIntegrity,
                           onChanged: (val) => setState(() => _deviceIntegrity = val),
                         ),
                         _buildSwitchRow(
-                          title: 'VPN Detection Warning',
+                          title: 'Anti-Spoofing & VPN Warning',
                           value: _vpnDetection,
                           onChanged: (val) => setState(() => _vpnDetection = val),
                         ),
@@ -265,7 +389,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
                         Switch(
                           value: _anonymousReporting,
                           activeThumbColor: Colors.white,
-                          activeTrackColor: const Color(0xFF1D4ED8),
+                          activeTrackColor: AppColors.primaryNavy,
                           inactiveThumbColor: Colors.white,
                           inactiveTrackColor: const Color(0xFFCBD5E1),
                           onChanged: (val) => setState(() => _anonymousReporting = val),
@@ -279,8 +403,8 @@ class _SettingsScreenState extends State<SettingsScreen> {
                   // Data Privacy Tile
                   _buildListTile(
                     icon: Icons.shield_outlined,
-                    title: 'Data Privacy',
-                    subtitle: 'Manage your data and retention',
+                    title: 'Data Retention & Encryption',
+                    subtitle: 'Local cache, encrypted traces, and wipe',
                     onTap: () {},
                   ),
                 ],
@@ -295,12 +419,13 @@ class _SettingsScreenState extends State<SettingsScreen> {
                   showDialog(
                     context: context,
                     builder: (ctx) => AlertDialog(
-                      title: const Text('Log Out'),
+                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(24)),
+                      title: const Text('Log Out', style: TextStyle(fontWeight: FontWeight.w800)),
                       content: Text('Are you sure you want to log out of ${currentUser.name}?'),
                       actions: [
                         TextButton(
                           onPressed: () => Navigator.pop(ctx),
-                          child: const Text('Cancel'),
+                          child: const Text('Cancel', style: TextStyle(fontWeight: FontWeight.w700)),
                         ),
                         TextButton(
                           onPressed: () {
@@ -313,32 +438,32 @@ class _SettingsScreenState extends State<SettingsScreen> {
                               ),
                             );
                           },
-                          child: const Text('Log Out', style: TextStyle(color: Color(0xFFDC2626), fontWeight: FontWeight.bold)),
+                          child: const Text('Log Out', style: TextStyle(color: Color(0xFFDC2626), fontWeight: FontWeight.w800)),
                         ),
                       ],
                     ),
                   );
                 },
-                borderRadius: BorderRadius.circular(12),
+                borderRadius: BorderRadius.circular(16),
                 child: Container(
                   width: double.infinity,
-                  height: 48,
+                  height: 50,
                   decoration: BoxDecoration(
                     color: Colors.white,
-                    borderRadius: BorderRadius.circular(12),
+                    borderRadius: BorderRadius.circular(16),
                     border: Border.all(color: const Color(0xFFFECACA), width: 1.2),
                   ),
                   child: const Row(
                     mainAxisAlignment: MainAxisAlignment.center,
                     children: [
-                      Icon(Icons.logout, color: Color(0xFFDC2626), size: 18),
+                      Icon(Icons.logout_rounded, color: Color(0xFFDC2626), size: 18),
                       SizedBox(width: 8),
                       Text(
                         'Log Out',
                         style: TextStyle(
                           color: Color(0xFFDC2626),
-                          fontSize: 14.5,
-                          fontWeight: FontWeight.w700,
+                          fontSize: 14,
+                          fontWeight: FontWeight.w800,
                         ),
                       ),
                     ],
@@ -353,13 +478,13 @@ class _SettingsScreenState extends State<SettingsScreen> {
                     MaterialPageRoute(builder: (context) => const LoginScreen()),
                   );
                 },
-                borderRadius: BorderRadius.circular(12),
+                borderRadius: BorderRadius.circular(16),
                 child: Container(
                   width: double.infinity,
-                  height: 48,
+                  height: 50,
                   decoration: BoxDecoration(
                     color: AppColors.primaryNavy,
-                    borderRadius: BorderRadius.circular(12),
+                    borderRadius: BorderRadius.circular(16),
                   ),
                   child: const Row(
                     mainAxisAlignment: MainAxisAlignment.center,
@@ -371,14 +496,14 @@ class _SettingsScreenState extends State<SettingsScreen> {
                         style: TextStyle(
                           color: Colors.white,
                           fontSize: 14.5,
-                          fontWeight: FontWeight.w700,
+                          fontWeight: FontWeight.w800,
                         ),
                       ),
                     ],
                   ),
                 ),
               ),
-            const SizedBox(height: 32),
+            const SizedBox(height: 36),
           ],
         ),
       ),
@@ -423,7 +548,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
                 ],
               ),
             ),
-            const Icon(Icons.chevron_right, color: Color(0xFFCBD5E1), size: 20),
+            const Icon(Icons.chevron_right_rounded, color: Color(0xFFCBD5E1), size: 20),
           ],
         ),
       ),
@@ -445,13 +570,13 @@ class _SettingsScreenState extends State<SettingsScreen> {
             style: const TextStyle(
               color: AppColors.textPrimary,
               fontSize: 13,
-              fontWeight: FontWeight.w500,
+              fontWeight: FontWeight.w600,
             ),
           ),
           Switch(
             value: value,
             activeThumbColor: Colors.white,
-            activeTrackColor: const Color(0xFF1D4ED8),
+            activeTrackColor: AppColors.primaryNavy,
             inactiveThumbColor: Colors.white,
             inactiveTrackColor: const Color(0xFFCBD5E1),
             onChanged: onChanged,

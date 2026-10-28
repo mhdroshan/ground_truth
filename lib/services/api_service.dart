@@ -463,6 +463,71 @@ class ApiService {
     return null;
   }
 
+  /// Update user profile details
+  static Future<AuthResponse> updateUserProfile({
+    required String userId,
+    String? token,
+    String? name,
+    String? email,
+    String? handle,
+    String? avatarUrl,
+    String? bio,
+    String? location,
+    String? organization,
+  }) async {
+    final payload = <String, dynamic>{};
+    if (name != null) payload['name'] = name;
+    if (email != null) payload['email'] = email;
+    if (handle != null) payload['handle'] = handle;
+    if (avatarUrl != null) payload['avatarUrl'] = avatarUrl;
+    if (bio != null) payload['bio'] = bio;
+    if (location != null) payload['location'] = location;
+    if (organization != null) payload['organization'] = organization;
+
+    final endpoints = [
+      '$baseUrl/users/$userId',
+      'http://localhost:5001/api/users/$userId',
+    ];
+
+    for (final url in endpoints) {
+      try {
+        final res = await http
+            .put(
+              Uri.parse(url),
+              headers: {
+                'Content-Type': 'application/json',
+                if (token != null && token.isNotEmpty) 'Authorization': 'Bearer $token',
+                'x-user-id': userId,
+              },
+              body: json.encode(payload),
+            )
+            .timeout(const Duration(seconds: 10));
+
+        final body = json.decode(res.body);
+        if (res.statusCode == 200 && body['success'] == true) {
+          final user = body['user'] != null ? UserModel.fromJson(body['user']) : null;
+          return AuthResponse(
+            success: true,
+            user: user,
+            message: body['message']?.toString() ?? 'Profile updated successfully.',
+          );
+        } else if (body['message'] != null || body['error'] != null) {
+          return AuthResponse(
+            success: false,
+            error: body['message']?.toString() ?? body['error']?.toString() ?? 'Update failed',
+          );
+        }
+      } catch (e) {
+        if (kDebugMode) print('ApiService updateUserProfile error for $url: $e');
+      }
+    }
+
+    return const AuthResponse(
+      success: false,
+      error: 'Could not connect to server. Saved locally.',
+    );
+  }
+
   /// Fetch user profile by ID or handle
   static Future<UserModel?> fetchUserProfile(
     String userId, {

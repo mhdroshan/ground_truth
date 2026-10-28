@@ -1,8 +1,20 @@
 import 'dart:math';
 import 'package:flutter/material.dart';
+import 'package:flutter_map/flutter_map.dart';
+import 'package:latlong2/latlong.dart';
 import '../../models/event_model.dart';
 import '../../theme/app_colors.dart';
 import '../../utils/geofence_math.dart';
+
+enum MapTileTheme {
+  voyager('Tactical Light', 'https://basemaps.cartocdn.com/rastertiles/voyager/{z}/{x}/{y}.png'),
+  street('Street Map', 'https://tile.openstreetmap.org/{z}/{x}/{y}.png'),
+  satellite('Satellite', 'https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}');
+
+  final String label;
+  final String urlTemplate;
+  const MapTileTheme(this.label, this.urlTemplate);
+}
 
 class TacticalRadarMap extends StatefulWidget {
   final EventModel event;
@@ -12,6 +24,7 @@ class TacticalRadarMap extends StatefulWidget {
   final bool isInteractive;
   final String? eventLabel;
   final VoidCallback? onExpand;
+  final ValueChanged<GeoPoint>? onLocationSelected;
 
   const TacticalRadarMap({
     super.key,
@@ -19,9 +32,10 @@ class TacticalRadarMap extends StatefulWidget {
     required this.userLocation,
     this.customCenter,
     this.height = 240,
-    this.isInteractive = false,
+    this.isInteractive = true,
     this.eventLabel,
     this.onExpand,
+    this.onLocationSelected,
   });
 
   @override
@@ -30,25 +44,87 @@ class TacticalRadarMap extends StatefulWidget {
 
 class _TacticalRadarMapState extends State<TacticalRadarMap>
     with SingleTickerProviderStateMixin {
-  late AnimationController _pulseController;
+  late final MapController _mapController;
+  late final AnimationController _pulseController;
+  MapTileTheme _currentTheme = MapTileTheme.voyager;
+  bool _showLayerPicker = false;
 
   @override
   void initState() {
     super.initState();
+    _mapController = MapController();
     _pulseController = AnimationController(
       vsync: this,
-      duration: const Duration(milliseconds: 2000),
+      duration: const Duration(milliseconds: 2200),
     )..repeat();
+  }
+
+  @override
+  void didUpdateWidget(TacticalRadarMap oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    final oldCenter = oldWidget.customCenter ?? oldWidget.event.center;
+    final newCenter = widget.customCenter ?? widget.event.center;
+    final oldRadius = oldWidget.event.radiusMeters;
+    final newRadius = widget.event.radiusMeters;
+
+    if (oldCenter.latitude != newCenter.latitude ||
+        oldCenter.longitude != newCenter.longitude ||
+        oldRadius != newRadius) {
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        if (!mounted) return;
+        final targetZoom = _calculateZoom(newRadius, newCenter.latitude);
+        _mapController.move(LatLng(newCenter.latitude, newCenter.longitude), targetZoom);
+      });
+    }
   }
 
   @override
   void dispose() {
     _pulseController.dispose();
+    _mapController.dispose();
     super.dispose();
+  }
+
+  GeoPoint get _activeCenter => widget.customCenter ?? widget.event.center;
+
+  double _calculateZoom(double radiusMeters, double latitude) {
+    if (radiusMeters <= 0) return 14.0;
+    final latRad = latitude * pi / 180.0;
+    final effectiveHeight = (widget.height.isInfinite || widget.height <= 0) ? 280.0 : widget.height;
+    final targetPixels = max(effectiveHeight * 0.65, 140.0);
+    final metersPerPixel = (radiusMeters * 2.0) / targetPixels;
+    if (metersPerPixel <= 0) return 14.0;
+    final zoom = log((156543.03392 * cos(latRad)) / metersPerPixel) / ln2;
+    if (zoom.isNaN || zoom.isInfinite) return 14.0;
+    return zoom.clamp(2.0, 18.0);
+  }
+
+  void _recenter() {
+    final center = _activeCenter;
+    final zoom = _calculateZoom(widget.event.radiusMeters, center.latitude);
+    _mapController.move(LatLng(center.latitude, center.longitude), zoom);
+  }
+
+  void _zoomIn() {
+    final currentZoom = _mapController.camera.zoom;
+    _mapController.move(_mapController.camera.center, (currentZoom + 1).clamp(2.0, 18.0));
+  }
+
+  void _zoomOut() {
+    final currentZoom = _mapController.camera.zoom;
+    _mapController.move(_mapController.camera.center, (currentZoom - 1).clamp(2.0, 18.0));
   }
 
   @override
   Widget build(BuildContext context) {
+    final center = _activeCenter;
+    final centerLatLng = LatLng(center.latitude, center.longitude);
+    final userLatLng = LatLng(widget.userLocation.latitude, widget.userLocation.longitude);
+    final initialZoom = _calculateZoom(widget.event.radiusMeters, center.latitude);
+
+    final distanceToUser = GeofenceMath.distanceBetweenPoints(center, widget.userLocation);
+    final showSeparateUserMarker = distanceToUser > 30.0;
+
     return Container(
       height: widget.height,
       decoration: BoxDecoration(
@@ -59,24 +135,245 @@ class _TacticalRadarMapState extends State<TacticalRadarMap>
       clipBehavior: Clip.antiAlias,
       child: Stack(
         children: [
-          // Light Map Canvas
-          AnimatedBuilder(
-            animation: _pulseController,
-            builder: (context, child) {
-              return CustomPaint(
-                size: Size.infinite,
-                painter: _FigmaMapPainter(
-                  pulseValue: _pulseController.value,
-                ),
-              );
-            },
+          // Live FlutterMap
+          FlutterMap(
+            mapController: _mapController,
+            options: MapOptions(
+              initialCenter: centerLatLng,
+              initialZoom: initialZoom,
+              minZoom: 2.0,
+              maxZoom: 18.0,
+              interactionOptions: InteractionOptions(
+                flags: widget.isInteractive ? InteractiveFlag.all : InteractiveFlag.none,
+              ),
+              onTap: (tapPosition, point) {
+                if (widget.onLocationSelected != null) {
+                  widget.onLocationSelected!(
+                    GeoPoint(point.latitude, point.longitude, 'Selected on Map'),
+                  );
+                }
+              },
+            ),
+            children: [
+              // 1. Live Tile Layer
+              TileLayer(
+                urlTemplate: _currentTheme.urlTemplate,
+                userAgentPackageName: 'com.groundtruth.app',
+                maxZoom: 19,
+              ),
+
+              // 2. Geofence Boundary Circles & Live Radar Wave
+              AnimatedBuilder(
+                animation: _pulseController,
+                builder: (context, _) {
+                  final pulseProgress = _pulseController.value;
+                  final pulseRadius = widget.event.radiusMeters * (0.2 + (pulseProgress * 0.8));
+                  final pulseAlpha = (1.0 - pulseProgress) * 0.25;
+
+                  return CircleLayer(
+                    circles: [
+                      // Pulsing radar sweep circle
+                      CircleMarker(
+                        point: centerLatLng,
+                        radius: pulseRadius,
+                        useRadiusInMeter: true,
+                        color: const Color(0xFF2563EB).withValues(alpha: pulseAlpha),
+                        borderColor: const Color(0xFF2563EB).withValues(alpha: (1.0 - pulseProgress) * 0.5),
+                        borderStrokeWidth: 1.2,
+                      ),
+                      // Core Geofence Boundary
+                      CircleMarker(
+                        point: centerLatLng,
+                        radius: widget.event.radiusMeters,
+                        useRadiusInMeter: true,
+                        color: const Color(0xFF2563EB).withValues(alpha: 0.12),
+                        borderColor: const Color(0xFF2563EB),
+                        borderStrokeWidth: 2.0,
+                      ),
+                    ],
+                  );
+                },
+              ),
+
+              // 3. Dynamic Markers on Real Coordinates
+              MarkerLayer(
+                markers: [
+                  // Center Anchor Marker
+                  Marker(
+                    point: centerLatLng,
+                    width: 150,
+                    height: 100,
+                    alignment: Alignment.center,
+                    child: Stack(
+                      alignment: Alignment.center,
+                      clipBehavior: Clip.none,
+                      children: [
+                        // Animated Center Radar Pulse
+                        AnimatedBuilder(
+                          animation: _pulseController,
+                          builder: (context, child) {
+                            final p = _pulseController.value;
+                            return Container(
+                              width: 18 + (p * 26),
+                              height: 18 + (p * 26),
+                              decoration: BoxDecoration(
+                                shape: BoxShape.circle,
+                                color: const Color(0xFF0038A8).withValues(alpha: (1.0 - p) * 0.45),
+                              ),
+                            );
+                          },
+                        ),
+
+                        // Solid Center Pin Dot (White ring with Navy center)
+                        Container(
+                          width: 18,
+                          height: 18,
+                          decoration: BoxDecoration(
+                            shape: BoxShape.circle,
+                            color: Colors.white,
+                            boxShadow: [
+                              BoxShadow(
+                                color: Colors.black.withValues(alpha: 0.25),
+                                blurRadius: 4,
+                                offset: const Offset(0, 2),
+                              ),
+                            ],
+                          ),
+                          child: Center(
+                            child: Container(
+                              width: 10,
+                              height: 10,
+                              decoration: const BoxDecoration(
+                                shape: BoxShape.circle,
+                                color: Color(0xFF0038A8),
+                              ),
+                            ),
+                          ),
+                        ),
+
+                        // Post Count Pill (top-left)
+                        if (widget.event.totalPosts > 0)
+                          Positioned(
+                            top: 14,
+                            left: 10,
+                            child: Container(
+                              padding: const EdgeInsets.symmetric(horizontal: 7, vertical: 2.5),
+                              decoration: BoxDecoration(
+                                color: const Color(0xFF86EFAC),
+                                borderRadius: BorderRadius.circular(10),
+                                boxShadow: [
+                                  BoxShadow(
+                                    color: Colors.black.withValues(alpha: 0.15),
+                                    blurRadius: 3,
+                                  ),
+                                ],
+                              ),
+                              child: Text(
+                                '${widget.event.totalPosts} posts',
+                                style: const TextStyle(
+                                  color: Color(0xFF14532D),
+                                  fontSize: 9.5,
+                                  fontWeight: FontWeight.w800,
+                                  letterSpacing: -0.2,
+                                ),
+                              ),
+                            ),
+                          ),
+
+                        // Hotspot / Tag Name Pill (bottom-right)
+                        Positioned(
+                          bottom: 16,
+                          right: 10,
+                          child: Container(
+                            padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+                            decoration: BoxDecoration(
+                              color: const Color(0xFF0038A8),
+                              borderRadius: BorderRadius.circular(10),
+                              boxShadow: [
+                                BoxShadow(
+                                  color: Colors.black.withValues(alpha: 0.2),
+                                  blurRadius: 4,
+                                  offset: const Offset(0, 1),
+                                ),
+                              ],
+                            ),
+                            child: Text(
+                              widget.event.tagName.isNotEmpty && widget.event.tagName != '#NewTag'
+                                  ? widget.event.tagName
+                                  : 'Hotspot',
+                              style: const TextStyle(
+                                color: Colors.white,
+                                fontSize: 9.5,
+                                fontWeight: FontWeight.w800,
+                                letterSpacing: 0.2,
+                              ),
+                            ),
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+
+                  // User physical GPS location marker (if away from anchor)
+                  if (showSeparateUserMarker)
+                    Marker(
+                      point: userLatLng,
+                      width: 80,
+                      height: 55,
+                      alignment: Alignment.center,
+                      child: Column(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          Container(
+                            padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                            decoration: BoxDecoration(
+                              color: const Color(0xFF15803D),
+                              borderRadius: BorderRadius.circular(8),
+                              boxShadow: [
+                                BoxShadow(
+                                  color: Colors.black.withValues(alpha: 0.2),
+                                  blurRadius: 4,
+                                ),
+                              ],
+                            ),
+                            child: const Text(
+                              'Your GPS',
+                              style: TextStyle(
+                                color: Colors.white,
+                                fontSize: 9,
+                                fontWeight: FontWeight.w800,
+                              ),
+                            ),
+                          ),
+                          const SizedBox(height: 2),
+                          Container(
+                            width: 14,
+                            height: 14,
+                            decoration: BoxDecoration(
+                              shape: BoxShape.circle,
+                              color: Colors.white,
+                              border: Border.all(color: const Color(0xFF15803D), width: 3),
+                              boxShadow: [
+                                BoxShadow(
+                                  color: Colors.black.withValues(alpha: 0.25),
+                                  blurRadius: 4,
+                                ),
+                              ],
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                ],
+              ),
+            ],
           ),
 
           // Top Label Pill if specified (e.g. "CENTRAL PLAZA EVENT")
           if (widget.eventLabel != null)
             Positioned(
-              top: 14,
-              left: 14,
+              top: 12,
+              left: 12,
               child: Container(
                 padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
                 decoration: BoxDecoration(
@@ -84,7 +381,7 @@ class _TacticalRadarMapState extends State<TacticalRadarMap>
                   borderRadius: BorderRadius.circular(20),
                   boxShadow: [
                     BoxShadow(
-                      color: Colors.black.withValues(alpha: 0.08),
+                      color: Colors.black.withValues(alpha: 0.1),
                       blurRadius: 8,
                       offset: const Offset(0, 2),
                     ),
@@ -94,7 +391,7 @@ class _TacticalRadarMapState extends State<TacticalRadarMap>
                 child: Row(
                   mainAxisSize: MainAxisSize.min,
                   children: [
-                    const Icon(Icons.location_on_outlined, size: 14, color: AppColors.primaryNavy),
+                    const Icon(Icons.location_on_rounded, size: 14, color: AppColors.primaryNavy),
                     const SizedBox(width: 5),
                     Text(
                       widget.eventLabel!.toUpperCase(),
@@ -110,16 +407,101 @@ class _TacticalRadarMapState extends State<TacticalRadarMap>
               ),
             ),
 
-          // Map Action Buttons (Right side)
+          // Layer Picker Dropdown / Flyout
+          if (_showLayerPicker)
+            Positioned(
+              right: 52,
+              bottom: 12,
+              child: Container(
+                padding: const EdgeInsets.symmetric(vertical: 6, horizontal: 8),
+                decoration: BoxDecoration(
+                  color: Colors.white,
+                  borderRadius: BorderRadius.circular(12),
+                  border: Border.all(color: AppColors.border),
+                  boxShadow: [
+                    BoxShadow(
+                      color: Colors.black.withValues(alpha: 0.15),
+                      blurRadius: 10,
+                      offset: const Offset(0, 4),
+                    ),
+                  ],
+                ),
+                child: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: MapTileTheme.values.map((theme) {
+                    final isSelected = _currentTheme == theme;
+                    return InkWell(
+                      onTap: () {
+                        setState(() {
+                          _currentTheme = theme;
+                          _showLayerPicker = false;
+                        });
+                      },
+                      borderRadius: BorderRadius.circular(6),
+                      child: Padding(
+                        padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 5),
+                        child: Row(
+                          mainAxisSize: MainAxisSize.min,
+                          children: [
+                            Icon(
+                              isSelected ? Icons.radio_button_checked : Icons.radio_button_off,
+                              size: 14,
+                              color: isSelected ? AppColors.primaryNavy : AppColors.textMuted,
+                            ),
+                            const SizedBox(width: 6),
+                            Text(
+                              theme.label,
+                              style: TextStyle(
+                                fontSize: 11,
+                                fontWeight: isSelected ? FontWeight.w800 : FontWeight.w600,
+                                color: isSelected ? AppColors.primaryNavy : AppColors.textPrimary,
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
+                    );
+                  }).toList(),
+                ),
+              ),
+            ),
+
+          // Map Control Buttons (Right side: Zoom, Recenter, Layers)
           Positioned(
             right: 12,
             bottom: 12,
             child: Column(
               mainAxisSize: MainAxisSize.min,
               children: [
-                _buildMapControl(Icons.my_location, () {}),
-                const SizedBox(height: 8),
-                _buildMapControl(Icons.layers_outlined, () {}),
+                _buildMapControl(Icons.add_rounded, _zoomIn, tooltip: 'Zoom In'),
+                const SizedBox(height: 6),
+                _buildMapControl(Icons.remove_rounded, _zoomOut, tooltip: 'Zoom Out'),
+                const SizedBox(height: 6),
+                _buildMapControl(
+                  Icons.my_location_rounded,
+                  _recenter,
+                  tooltip: 'Recenter on Geofence',
+                ),
+                const SizedBox(height: 6),
+                _buildMapControl(
+                  Icons.layers_rounded,
+                  () {
+                    setState(() {
+                      _showLayerPicker = !_showLayerPicker;
+                    });
+                  },
+                  tooltip: 'Switch Map Style',
+                  isActive: _showLayerPicker,
+                ),
+                if (widget.onExpand != null) ...[
+                  const SizedBox(height: 6),
+                  _buildMapControl(
+                    Icons.fullscreen_rounded,
+                    widget.onExpand!,
+                    tooltip: 'Expand Map',
+                  ),
+                ],
               ],
             ),
           ),
@@ -128,179 +510,41 @@ class _TacticalRadarMapState extends State<TacticalRadarMap>
     );
   }
 
-  Widget _buildMapControl(IconData icon, VoidCallback onTap) {
-    return InkWell(
-      onTap: onTap,
-      borderRadius: BorderRadius.circular(8),
-      child: Container(
-        width: 36,
-        height: 36,
-        decoration: BoxDecoration(
-          color: Colors.white,
-          borderRadius: BorderRadius.circular(8),
-          border: Border.all(color: AppColors.border),
-          boxShadow: [
-            BoxShadow(
-              color: Colors.black.withValues(alpha: 0.06),
-              blurRadius: 6,
-              offset: const Offset(0, 2),
+  Widget _buildMapControl(
+    IconData icon,
+    VoidCallback onTap, {
+    String? tooltip,
+    bool isActive = false,
+  }) {
+    return Tooltip(
+      message: tooltip ?? '',
+      child: InkWell(
+        onTap: onTap,
+        borderRadius: BorderRadius.circular(8),
+        child: Container(
+          width: 36,
+          height: 36,
+          decoration: BoxDecoration(
+            color: isActive ? const Color(0xFFEFF6FF) : Colors.white,
+            borderRadius: BorderRadius.circular(8),
+            border: Border.all(
+              color: isActive ? const Color(0xFF3B82F6) : AppColors.border,
             ),
-          ],
+            boxShadow: [
+              BoxShadow(
+                color: Colors.black.withValues(alpha: 0.08),
+                blurRadius: 6,
+                offset: const Offset(0, 2),
+              ),
+            ],
+          ),
+          child: Icon(
+            icon,
+            size: 18,
+            color: isActive ? const Color(0xFF1D4ED8) : AppColors.textSecondary,
+          ),
         ),
-        child: Icon(icon, size: 18, color: AppColors.textSecondary),
       ),
     );
-  }
-}
-
-class _FigmaMapPainter extends CustomPainter {
-  final double pulseValue;
-
-  _FigmaMapPainter({required this.pulseValue});
-
-  @override
-  void paint(Canvas canvas, Size size) {
-    final center = Offset(size.width * 0.5, size.height * 0.48);
-
-    // 1. Draw light map background land & roads
-    final landPaint = Paint()..color = const Color(0xFFF3F5F9);
-    canvas.drawRect(Rect.fromLTWH(0, 0, size.width, size.height), landPaint);
-
-    // River / water body
-    final waterPaint = Paint()..color = const Color(0xFFDCEAF7);
-    final waterPath = Path();
-    waterPath.moveTo(size.width * 0.1, 0);
-    waterPath.quadraticBezierTo(size.width * 0.18, size.height * 0.5, size.width * 0.08, size.height);
-    waterPath.lineTo(0, size.height);
-    waterPath.lineTo(0, 0);
-    waterPath.close();
-    canvas.drawPath(waterPath, waterPaint);
-
-    // Park / Greenery area
-    final parkPaint = Paint()..color = const Color(0xFFE2F0D9);
-    canvas.drawRRect(
-      RRect.fromRectAndRadius(
-        Rect.fromLTWH(size.width * 0.65, size.height * 0.55, size.width * 0.3, size.height * 0.35),
-        const Radius.circular(20),
-      ),
-      parkPaint,
-    );
-
-    // Roads (Main arterial white roads with subtle gray edges)
-    final roadBorderPaint = Paint()
-      ..color = const Color(0xFFD1D5DB)
-      ..strokeWidth = 5.0
-      ..style = PaintingStyle.stroke;
-
-    final roadPaint = Paint()
-      ..color = Colors.white
-      ..strokeWidth = 3.6
-      ..style = PaintingStyle.stroke;
-
-    // Road 1: diagonal top-left to bottom-right
-    final road1 = Path();
-    road1.moveTo(0, size.height * 0.3);
-    road1.lineTo(size.width, size.height * 0.85);
-    canvas.drawPath(road1, roadBorderPaint);
-    canvas.drawPath(road1, roadPaint);
-
-    // Road 2: vertical curve
-    final road2 = Path();
-    road2.moveTo(size.width * 0.42, 0);
-    road2.lineTo(size.width * 0.48, size.height);
-    canvas.drawPath(road2, roadBorderPaint);
-    canvas.drawPath(road2, roadPaint);
-
-    // Road 3: horizontal
-    final road3 = Path();
-    road3.moveTo(0, size.height * 0.62);
-    road3.lineTo(size.width, size.height * 0.58);
-    canvas.drawPath(road3, roadBorderPaint);
-    canvas.drawPath(road3, roadPaint);
-
-    // Secondary smaller streets
-    final streetPaint = Paint()
-      ..color = Colors.white.withValues(alpha: 0.9)
-      ..strokeWidth = 2.0
-      ..style = PaintingStyle.stroke;
-
-    canvas.drawLine(Offset(size.width * 0.2, 0), Offset(size.width * 0.2, size.height), streetPaint);
-    canvas.drawLine(Offset(size.width * 0.75, 0), Offset(size.width * 0.75, size.height), streetPaint);
-    canvas.drawLine(Offset(0, size.height * 0.2), Offset(size.width, size.height * 0.2), streetPaint);
-
-    // 2. Circular Geofence Boundary (Figma Blue Circle with translucent fill)
-    final geofenceRadius = min(size.width, size.height) * 0.38;
-
-    final geofenceFill = Paint()
-      ..color = const Color(0xFF2563EB).withValues(alpha: 0.12)
-      ..style = PaintingStyle.fill;
-    canvas.drawCircle(center, geofenceRadius, geofenceFill);
-
-    final geofenceBorder = Paint()
-      ..color = const Color(0xFF2563EB)
-      ..style = PaintingStyle.stroke
-      ..strokeWidth = 1.8;
-    canvas.drawCircle(center, geofenceRadius, geofenceBorder);
-
-    // 3. User Radar Pulse Beacon
-    final pulseRadius = 10.0 + (pulseValue * 22.0);
-    final pulsePaint = Paint()
-      ..color = const Color(0xFF0038A8).withValues(alpha: (1.0 - pulseValue) * 0.4)
-      ..style = PaintingStyle.fill;
-    canvas.drawCircle(center, pulseRadius, pulsePaint);
-
-    // User center solid pin
-    final centerOuter = Paint()
-      ..color = Colors.white
-      ..style = PaintingStyle.fill;
-    canvas.drawCircle(center, 9, centerOuter);
-
-    final centerInner = Paint()
-      ..color = const Color(0xFF0038A8)
-      ..style = PaintingStyle.fill;
-    canvas.drawCircle(center, 6, centerInner);
-
-    // 4. Hotspot Pill & Post Count Pill (As in Figma Screen 1)
-    _drawPill(canvas, Offset(center.dx - 30, center.dy - geofenceRadius * 0.65), '124 posts', const Color(0xFF86EFAC), const Color(0xFF14532D));
-    _drawPill(canvas, Offset(center.dx + 48, center.dy + 12), 'Hotspot', const Color(0xFF0038A8), Colors.white);
-  }
-
-  void _drawPill(Canvas canvas, Offset offset, String text, Color bgColor, Color textColor) {
-    const textStyle = TextStyle(
-      color: Colors.white,
-      fontSize: 9.5,
-      fontWeight: FontWeight.w800,
-      fontFamily: 'Inter',
-    );
-
-    final textSpan = TextSpan(
-      text: text,
-      style: textStyle.copyWith(color: textColor),
-    );
-
-    final textPainter = TextPainter(
-      text: textSpan,
-      textDirection: TextDirection.ltr,
-    )..layout();
-
-    final pillWidth = textPainter.width + 12;
-    final pillHeight = textPainter.height + 6;
-    final rect = RRect.fromRectAndRadius(
-      Rect.fromCenter(center: offset, width: pillWidth, height: pillHeight),
-      const Radius.circular(10),
-    );
-
-    final paint = Paint()..color = bgColor;
-    canvas.drawRRect(rect, paint);
-
-    textPainter.paint(
-      canvas,
-      Offset(offset.dx - textPainter.width / 2, offset.dy - textPainter.height / 2),
-    );
-  }
-
-  @override
-  bool shouldRepaint(covariant _FigmaMapPainter oldDelegate) {
-    return oldDelegate.pulseValue != pulseValue;
   }
 }

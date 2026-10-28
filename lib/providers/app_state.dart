@@ -386,6 +386,83 @@ class AppState extends ChangeNotifier {
     await _clearPersistedSession();
   }
 
+  /// Updates personal info and profile picture for the current user, persisting locally and syncing to backend
+  Future<bool> updateCurrentUserProfile({
+    String? name,
+    String? email,
+    String? handle,
+    String? avatarUrl,
+    String? bio,
+    String? location,
+    String? organization,
+  }) async {
+    String cleanHandle = handle ?? _currentUser.handle;
+    if (cleanHandle.trim().isNotEmpty && !cleanHandle.trim().startsWith('@')) {
+      cleanHandle = '@${cleanHandle.trim()}';
+    }
+
+    final updated = _currentUser.copyWith(
+      name: name?.trim() ?? _currentUser.name,
+      email: email?.trim() ?? _currentUser.email,
+      handle: cleanHandle,
+      avatarUrl: avatarUrl ?? _currentUser.avatarUrl,
+      bio: bio?.trim() ?? _currentUser.bio,
+      location: location?.trim() ?? _currentUser.location,
+      organization: organization?.trim() ?? _currentUser.organization,
+    );
+
+    _currentUser = updated;
+    await _savePersistedSession();
+
+    // Update posts authored by current user in local state so feed displays fresh author details
+    if (name != null || avatarUrl != null) {
+      for (final eventId in _postsByEvent.keys) {
+        final list = _postsByEvent[eventId];
+        if (list != null) {
+          for (int i = 0; i < list.length; i++) {
+            if (isCurrentUserPost(list[i])) {
+              list[i] = list[i].copyWith(
+                authorName: name?.trim() ?? list[i].authorName,
+                authorAvatar: avatarUrl ?? list[i].authorAvatar,
+              );
+            }
+          }
+        }
+      }
+    }
+
+    notifyListeners();
+
+    // Sync to backend if logged in and not temporary local guest
+    if (_isLoggedIn &&
+        _currentUser.id.isNotEmpty &&
+        !_currentUser.id.startsWith('user_local_') &&
+        _currentUser.id != 'guest_user') {
+      try {
+        final res = await ApiService.updateUserProfile(
+          userId: _currentUser.id,
+          token: _authToken,
+          name: name?.trim(),
+          email: email?.trim(),
+          handle: cleanHandle,
+          avatarUrl: avatarUrl,
+          bio: bio?.trim(),
+          location: location?.trim(),
+          organization: organization?.trim(),
+        );
+        if (res.success && res.user != null) {
+          _currentUser = res.user!.copyWith(achievements: _currentUser.achievements);
+          await _savePersistedSession();
+          notifyListeners();
+        }
+      } catch (e) {
+        if (kDebugMode) print('Failed to sync updated profile to backend: $e');
+      }
+    }
+
+    return true;
+  }
+
   // Active filter states
   FeedTab _selectedFeedTab = FeedTab.trending;
   FeedTab get selectedFeedTab => _selectedFeedTab;

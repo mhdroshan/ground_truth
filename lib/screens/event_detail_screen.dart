@@ -1,3 +1,4 @@
+import 'dart:ui';
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import 'package:intl/intl.dart';
@@ -11,6 +12,7 @@ import '../widgets/post/poll_widget.dart';
 import '../widgets/post/voice_note_player.dart';
 import '../widgets/post/verification_restricted_sheet.dart';
 import '../widgets/common/safe_image.dart';
+import '../widgets/common/glass_card.dart';
 import 'comments_sheet.dart';
 import 'create_post_screen.dart';
 import 'profile_screen.dart';
@@ -61,11 +63,13 @@ class _EventDetailScreenState extends State<EventDetailScreen> {
     }
 
     return Scaffold(
-      backgroundColor: const Color(0xFFF8FAFC),
+      backgroundColor: AppColors.background,
       appBar: AppBar(
-        backgroundColor: Colors.white,
+        backgroundColor: Colors.white.withValues(alpha: 0.9),
+        surfaceTintColor: Colors.transparent,
+        elevation: 0,
         leading: IconButton(
-          icon: const Icon(Icons.arrow_back, color: AppColors.primaryNavy),
+          icon: const Icon(Icons.arrow_back_rounded, color: AppColors.primaryNavy),
           onPressed: () => Navigator.pop(context),
         ),
         title: Column(
@@ -74,17 +78,20 @@ class _EventDetailScreenState extends State<EventDetailScreen> {
             Text(
               event.tagName,
               style: const TextStyle(
-                color: AppColors.primaryNavy,
-                fontSize: 17,
+                color: AppColors.textPrimary,
+                fontSize: 16.5,
                 fontWeight: FontWeight.w900,
+                letterSpacing: -0.4,
               ),
             ),
+            const SizedBox(height: 1),
             Text(
-              '${event.category.label} • ${event.formattedRadius} Radius',
+              '${event.category.label.toUpperCase()} • ${event.formattedRadius} RADIUS',
               style: const TextStyle(
                 color: AppColors.textSecondary,
-                fontSize: 11,
-                fontWeight: FontWeight.w600,
+                fontSize: 10,
+                fontWeight: FontWeight.w800,
+                letterSpacing: 0.8,
               ),
             ),
           ],
@@ -93,68 +100,124 @@ class _EventDetailScreenState extends State<EventDetailScreen> {
       body: SingleChildScrollView(
         child: Column(
           children: [
-
-            // Presence Status Bar
+            // 2026 Liquid Glass Presence Status Hero Banner
             Container(
-              padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
-              decoration: BoxDecoration(
-                color: isUserInside ? const Color(0xFFDCFCE7) : const Color(0xFFEFF6FF),
-                border: Border(
-                  bottom: BorderSide(
-                    color: isUserInside ? const Color(0xFF86EFAC) : const Color(0xFFBFDBFE),
-                  ),
-                ),
-              ),
-              child: Row(
-                children: [
-                  Icon(
-                    isUserInside ? Icons.verified_user_rounded : Icons.info_outline_rounded,
-                    size: 18,
-                    color: isUserInside ? const Color(0xFF15803D) : const Color(0xFF1E40AF),
-                  ),
-                  const SizedBox(width: 8),
-                  Expanded(
-                    child: Text(
-                      isUserInside
-                          ? 'You are inside ${event.tagName} (${event.formattedRadius}). You can post & verify news on-site.'
-                          : 'Observer Mode (${GeofenceMath.formatDistance(distanceMeters)} away). Verification is restricted to on-site users. Comments are open to all.',
-                      style: TextStyle(
-                        color: isUserInside ? const Color(0xFF14532D) : const Color(0xFF1E3A8A),
-                        fontSize: 11.5,
-                        fontWeight: FontWeight.w700,
+              margin: const EdgeInsets.fromLTRB(16, 12, 16, 8),
+              child: GlassCard(
+                padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+                borderRadius: 20,
+                backgroundColor: isUserInside
+                    ? const Color(0xFFF0FDF4).withValues(alpha: 0.92)
+                    : const Color(0xFFEFF6FF).withValues(alpha: 0.92),
+                borderColor: isUserInside ? const Color(0xFF86EFAC) : const Color(0xFFBFDBFE),
+                hasGlow: isUserInside,
+                glowColor: const Color(0xFF10B981).withValues(alpha: 0.12),
+                child: Row(
+                  children: [
+                    Container(
+                      padding: const EdgeInsets.all(8),
+                      decoration: BoxDecoration(
+                        color: isUserInside ? const Color(0xFFDCFCE7) : const Color(0xFFDBEAFE),
+                        shape: BoxShape.circle,
+                      ),
+                      child: Icon(
+                        isUserInside ? Icons.verified_user_rounded : Icons.radar_rounded,
+                        size: 20,
+                        color: isUserInside ? const Color(0xFF15803D) : const Color(0xFF1E40AF),
                       ),
                     ),
+                    const SizedBox(width: 12),
+                    Expanded(
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Row(
+                            children: [
+                              Text(
+                                isUserInside ? 'ON-SITE EYEWITNESS' : 'OBSERVER MODE',
+                                style: TextStyle(
+                                  color: isUserInside ? const Color(0xFF14532D) : const Color(0xFF1E3A8A),
+                                  fontSize: 11,
+                                  fontWeight: FontWeight.w900,
+                                  letterSpacing: 0.8,
+                                ),
+                              ),
+                              if (!isUserInside) ...[
+                                const SizedBox(width: 6),
+                                Container(
+                                  padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 1.5),
+                                  decoration: BoxDecoration(
+                                    color: const Color(0xFFDBEAFE),
+                                    borderRadius: BorderRadius.circular(6),
+                                  ),
+                                  child: Text(
+                                    '${GeofenceMath.formatDistance(distanceMeters)} away',
+                                    style: const TextStyle(
+                                      color: Color(0xFF1E40AF),
+                                      fontSize: 9.5,
+                                      fontWeight: FontWeight.w800,
+                                    ),
+                                  ),
+                                ),
+                              ],
+                            ],
+                          ),
+                          const SizedBox(height: 3),
+                          Text(
+                            isUserInside
+                                ? 'You are inside ${event.tagName} (${event.formattedRadius}). You can post reports & verify truth on-site.'
+                                : 'Verification votes are restricted to on-site eyewitnesses. Comments are open worldwide.',
+                            style: TextStyle(
+                              color: isUserInside ? const Color(0xFF15803D) : const Color(0xFF3B82F6),
+                              fontSize: 11.5,
+                              height: 1.35,
+                              fontWeight: FontWeight.w600,
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ),
+
+            // 2026 Bento Telemetry Metric Bar
+            Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 6),
+              child: GlassCard(
+                padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
+                borderRadius: 20,
+                child: Row(
+                  mainAxisAlignment: MainAxisAlignment.spaceAround,
+                  children: [
+                    _buildMetric('SCOPE', event.scope.label, isAccent: false),
+                    _buildMetricDivider(),
+                    _buildMetric('RADIUS', event.formattedRadius, isAccent: false),
+                    _buildMetricDivider(),
+                    _buildMetric('REPORTS', '${event.totalPosts}', isAccent: false),
+                    _buildMetricDivider(),
+                    _buildMetric('EYEWITNESSES', '${event.activeContributors}', isAccent: true),
+                  ],
+                ),
+              ),
+            ),
+
+            // 2026 Floating Segmented Tab Navigation Bar
+            Container(
+              margin: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
+              padding: const EdgeInsets.all(4),
+              decoration: BoxDecoration(
+                color: Colors.white,
+                borderRadius: BorderRadius.circular(16),
+                border: Border.all(color: const Color(0xFFE2E8F0)),
+                boxShadow: [
+                  BoxShadow(
+                    color: Colors.black.withValues(alpha: 0.02),
+                    blurRadius: 6,
+                    offset: const Offset(0, 2),
                   ),
                 ],
-              ),
-            ),
-
-            // Telemetry Metric Bar
-            Container(
-              padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
-              decoration: const BoxDecoration(
-                color: Colors.white,
-                border: Border(bottom: BorderSide(color: AppColors.border)),
-              ),
-              child: Row(
-                mainAxisAlignment: MainAxisAlignment.spaceAround,
-                children: [
-                  _buildMetric('Scope', event.scope.label, isAccent: false),
-                  _buildMetricDivider(),
-                  _buildMetric('Radius', event.formattedRadius, isAccent: false),
-                  _buildMetricDivider(),
-                  _buildMetric('Reports', '${event.totalPosts}', isAccent: false),
-                  _buildMetricDivider(),
-                  _buildMetric('Eyewitnesses', '${event.activeContributors}', isAccent: true),
-                ],
-              ),
-            ),
-
-            // Tab Navigation Bar
-            Container(
-              decoration: const BoxDecoration(
-                color: Colors.white,
-                border: Border(bottom: BorderSide(color: AppColors.border)),
               ),
               child: Row(
                 children: _tabs.asMap().entries.map((entry) {
@@ -162,23 +225,21 @@ class _EventDetailScreenState extends State<EventDetailScreen> {
                   return Expanded(
                     child: InkWell(
                       onTap: () => setState(() => _selectedTabIndex = entry.key),
-                      child: Container(
-                        padding: const EdgeInsets.symmetric(vertical: 13),
+                      borderRadius: BorderRadius.circular(12),
+                      child: AnimatedContainer(
+                        duration: const Duration(milliseconds: 200),
+                        padding: const EdgeInsets.symmetric(vertical: 9),
                         decoration: BoxDecoration(
-                          border: Border(
-                            bottom: BorderSide(
-                              color: isSelected ? AppColors.primaryNavy : Colors.transparent,
-                              width: 2.5,
-                            ),
-                          ),
+                          color: isSelected ? AppColors.primaryNavy : Colors.transparent,
+                          borderRadius: BorderRadius.circular(12),
                         ),
                         child: Center(
                           child: Text(
                             entry.value,
                             style: TextStyle(
-                              color: isSelected ? AppColors.primaryNavy : AppColors.textSecondary,
-                              fontSize: 12.5,
-                              fontWeight: isSelected ? FontWeight.w800 : FontWeight.w600,
+                              color: isSelected ? Colors.white : AppColors.textSecondary,
+                              fontSize: 12,
+                              fontWeight: isSelected ? FontWeight.w900 : FontWeight.w600,
                             ),
                           ),
                         ),
@@ -202,8 +263,9 @@ class _EventDetailScreenState extends State<EventDetailScreen> {
                         'No reports under ${_tabs[_selectedTabIndex]} yet.',
                         style: const TextStyle(
                           color: AppColors.textPrimary,
-                          fontWeight: FontWeight.w700,
-                          fontSize: 14,
+                          fontWeight: FontWeight.w900,
+                          fontSize: 15,
+                          letterSpacing: -0.3,
                         ),
                       ),
                       const SizedBox(height: 6),
@@ -212,14 +274,16 @@ class _EventDetailScreenState extends State<EventDetailScreen> {
                             ? 'You are currently inside this event radius! Be the first eyewitness to report.'
                             : 'Original posts must be submitted from inside the ${event.formattedRadius} boundary.',
                         textAlign: TextAlign.center,
-                        style: const TextStyle(color: AppColors.textSecondary, fontSize: 12),
+                        style: const TextStyle(color: AppColors.textSecondary, fontSize: 12, height: 1.4),
                       ),
                       if (isUserInside) ...[
-                        const SizedBox(height: 14),
+                        const SizedBox(height: 18),
                         ElevatedButton.icon(
                           style: ElevatedButton.styleFrom(
-                            backgroundColor: const Color(0xFF006C35),
+                            backgroundColor: const Color(0xFF10B981),
                             foregroundColor: Colors.white,
+                            padding: const EdgeInsets.symmetric(horizontal: 18, vertical: 12),
+                            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
                           ),
                           onPressed: () {
                             Navigator.push(
@@ -233,7 +297,10 @@ class _EventDetailScreenState extends State<EventDetailScreen> {
                             );
                           },
                           icon: Icon(_selectedTabIndex == 3 ? Icons.how_to_vote : Icons.edit_note, size: 18),
-                          label: Text(_selectedTabIndex == 3 ? 'Create First Poll' : 'Write First Report'),
+                          label: Text(
+                            _selectedTabIndex == 3 ? 'Create First Poll' : 'Write First Report',
+                            style: const TextStyle(fontWeight: FontWeight.w800, fontSize: 13),
+                          ),
                         ),
                       ],
                     ],
@@ -242,7 +309,7 @@ class _EventDetailScreenState extends State<EventDetailScreen> {
               )
             else
               Padding(
-                padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+                padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 4),
                 child: ListView.separated(
                   shrinkWrap: true,
                   physics: const NeverScrollableScrollPhysics(),
@@ -268,22 +335,26 @@ class _EventDetailScreenState extends State<EventDetailScreen> {
 
       // Floating Action Button: Strictly available if user is inside this tag's area
       floatingActionButton: isUserInside
-          ? FloatingActionButton.extended(
-              backgroundColor: const Color(0xFF006C35),
-              elevation: 5,
-              icon: const Icon(Icons.rate_review_rounded, color: Colors.white, size: 20),
-              label: const Text(
-                'Write Post',
-                style: TextStyle(fontSize: 13.5, fontWeight: FontWeight.w800, color: Colors.white),
+          ? Container(
+              margin: const EdgeInsets.only(bottom: 12),
+              child: FloatingActionButton.extended(
+                backgroundColor: const Color(0xFF10B981),
+                elevation: 4,
+                icon: const Icon(Icons.rate_review_rounded, color: Colors.white, size: 20),
+                label: const Text(
+                  'Write Post',
+                  style: TextStyle(fontSize: 13.5, fontWeight: FontWeight.w900, color: Colors.white),
+                ),
+                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+                onPressed: () {
+                  Navigator.push(
+                    context,
+                    MaterialPageRoute(
+                      builder: (context) => CreatePostScreen(event: event!),
+                    ),
+                  );
+                },
               ),
-              onPressed: () {
-                Navigator.push(
-                  context,
-                  MaterialPageRoute(
-                    builder: (context) => CreatePostScreen(event: event!),
-                  ),
-                );
-              },
             )
           : null,
     );
@@ -294,15 +365,21 @@ class _EventDetailScreenState extends State<EventDetailScreen> {
       children: [
         Text(
           label,
-          style: const TextStyle(color: AppColors.textSecondary, fontSize: 11, fontWeight: FontWeight.w600),
+          style: const TextStyle(
+            color: AppColors.textMuted,
+            fontSize: 9.5,
+            fontWeight: FontWeight.w800,
+            letterSpacing: 0.8,
+          ),
         ),
         const SizedBox(height: 3),
         Text(
           value,
           style: TextStyle(
-            color: isAccent ? const Color(0xFF006C35) : AppColors.textPrimary,
+            color: isAccent ? const Color(0xFF10B981) : AppColors.textPrimary,
             fontSize: 15,
-            fontWeight: FontWeight.w800,
+            fontWeight: FontWeight.w900,
+            letterSpacing: -0.3,
           ),
         ),
       ],
@@ -310,7 +387,7 @@ class _EventDetailScreenState extends State<EventDetailScreen> {
   }
 
   Widget _buildMetricDivider() {
-    return Container(width: 1, height: 28, color: AppColors.border);
+    return Container(width: 1, height: 26, color: const Color(0xFFE2E8F0));
   }
 
   Widget _buildPostCard(
@@ -331,24 +408,12 @@ class _EventDetailScreenState extends State<EventDetailScreen> {
         post.locationDisplayName.toLowerCase().contains('verification');
     final displayLocation = isGeneric ? tagLocation : post.locationDisplayName;
 
-    return Container(
+    return GlassCard(
       padding: const EdgeInsets.all(16),
-      decoration: BoxDecoration(
-        color: Colors.white,
-        borderRadius: BorderRadius.circular(16),
-        border: Border.all(color: AppColors.border),
-        boxShadow: [
-          BoxShadow(
-            color: Colors.black.withValues(alpha: 0.02),
-            blurRadius: 6,
-            offset: const Offset(0, 2),
-          ),
-        ],
-      ),
+      borderRadius: 22,
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-
           // Author Header
           Row(
             children: [
@@ -367,9 +432,9 @@ class _EventDetailScreenState extends State<EventDetailScreen> {
                     ),
                   );
                 },
-                borderRadius: BorderRadius.circular(19),
+                borderRadius: BorderRadius.circular(20),
                 child: CircleAvatar(
-                  radius: 19,
+                  radius: 20,
                   backgroundColor: const Color(0xFFF1F5F9),
                   backgroundImage: NetworkImage(post.authorAvatar),
                   onBackgroundImageError: (error, stack) {},
@@ -408,7 +473,8 @@ class _EventDetailScreenState extends State<EventDetailScreen> {
                                     style: const TextStyle(
                                       color: AppColors.textPrimary,
                                       fontSize: 13.5,
-                                      fontWeight: FontWeight.w800,
+                                      fontWeight: FontWeight.w900,
+                                      letterSpacing: -0.3,
                                     ),
                                     maxLines: 1,
                                     overflow: TextOverflow.ellipsis,
@@ -431,8 +497,9 @@ class _EventDetailScreenState extends State<EventDetailScreen> {
                                       'VERIFIED',
                                       style: TextStyle(
                                         color: Color(0xFF15803D),
-                                        fontSize: 9.5,
-                                        fontWeight: FontWeight.w800,
+                                        fontSize: 9,
+                                        fontWeight: FontWeight.w900,
+                                        letterSpacing: 0.5,
                                       ),
                                     ),
                                   ],
@@ -471,7 +538,7 @@ class _EventDetailScreenState extends State<EventDetailScreen> {
                                 },
                                 borderRadius: BorderRadius.circular(12),
                                 child: Container(
-                                  padding: const EdgeInsets.symmetric(horizontal: 7, vertical: 2.5),
+                                  padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
                                   decoration: BoxDecoration(
                                     color: isFollowed ? const Color(0xFFDCFCE7) : const Color(0xFFEFF6FF),
                                     borderRadius: BorderRadius.circular(10),
@@ -484,7 +551,7 @@ class _EventDetailScreenState extends State<EventDetailScreen> {
                                     style: TextStyle(
                                       color: isFollowed ? const Color(0xFF15803D) : AppColors.primaryNavy,
                                       fontSize: 10,
-                                      fontWeight: FontWeight.w700,
+                                      fontWeight: FontWeight.w800,
                                     ),
                                   ),
                                 ),
@@ -506,7 +573,7 @@ class _EventDetailScreenState extends State<EventDetailScreen> {
                     const SizedBox(height: 2),
                     Row(
                       children: [
-                        const Icon(Icons.location_on, size: 11, color: AppColors.textMuted),
+                        const Icon(Icons.location_on_rounded, size: 11, color: AppColors.textMuted),
                         const SizedBox(width: 2),
                         Flexible(
                           child: Text(
@@ -532,6 +599,7 @@ class _EventDetailScreenState extends State<EventDetailScreen> {
               color: AppColors.textPrimary,
               fontSize: 14,
               height: 1.45,
+              fontWeight: FontWeight.w500,
             ),
           ),
           const SizedBox(height: 12),
@@ -539,7 +607,7 @@ class _EventDetailScreenState extends State<EventDetailScreen> {
           // Attachments
           if (post.type == PostType.photo && post.mediaUrl != null)
             ClipRRect(
-              borderRadius: BorderRadius.circular(12),
+              borderRadius: BorderRadius.circular(16),
               child: SafeImageWidget(
                 urlOrData: post.mediaUrl!,
                 fit: BoxFit.cover,
@@ -550,7 +618,7 @@ class _EventDetailScreenState extends State<EventDetailScreen> {
 
           if (post.type == PostType.video && post.videoThumbnailUrl != null)
             ClipRRect(
-              borderRadius: BorderRadius.circular(12),
+              borderRadius: BorderRadius.circular(16),
               child: Stack(
                 alignment: Alignment.center,
                 children: [
@@ -563,7 +631,7 @@ class _EventDetailScreenState extends State<EventDetailScreen> {
                   Container(
                     padding: const EdgeInsets.all(12),
                     decoration: BoxDecoration(
-                      color: Colors.black.withValues(alpha: 0.65),
+                      color: Colors.black.withValues(alpha: 0.6),
                       shape: BoxShape.circle,
                     ),
                     child: const Icon(Icons.play_arrow_rounded, color: Colors.white, size: 32),
@@ -630,18 +698,16 @@ class _EventDetailScreenState extends State<EventDetailScreen> {
 
           const SizedBox(height: 14),
 
-          // Verification Action Bar: Like & Dislike (ON-SITE RESTRICTED) + Comments (OPEN)
+          // 2026 Asymmetric Verification Action Capsule
           Row(
             children: [
               // Like / Dislike Container
               Container(
                 decoration: BoxDecoration(
-                  color: canVote
-                      ? const Color(0xFFF1F5F9)
-                      : const Color(0xFFF8FAFC),
+                  color: canVote ? const Color(0xFFF1F5F9) : const Color(0xFFF8FAFC),
                   borderRadius: BorderRadius.circular(20),
                   border: Border.all(
-                    color: canVote ? AppColors.border : const Color(0xFFE2E8F0),
+                    color: canVote ? const Color(0xFFE2E8F0) : const Color(0xFFE2E8F0),
                   ),
                 ),
                 child: Row(
@@ -717,7 +783,7 @@ class _EventDetailScreenState extends State<EventDetailScreen> {
                     Container(
                       width: 1,
                       height: 16,
-                      color: isUserInside ? AppColors.border : const Color(0xFFE2E8F0),
+                      color: const Color(0xFFE2E8F0),
                     ),
 
                     // DISLIKE (Dispute False)
@@ -778,7 +844,7 @@ class _EventDetailScreenState extends State<EventDetailScreen> {
                                 style: TextStyle(
                                   color: !canVote
                                       ? AppColors.textMuted
-                                      : (post.userVote == -1 ? const Color(0xFFDC2626) : AppColors.textSecondary),
+                                      : (post.userVote == -1 ? const Color(0xFFDC2626) : AppColors.textPrimary),
                                   fontSize: 12,
                                   fontWeight: FontWeight.w800,
                                 ),
@@ -793,36 +859,34 @@ class _EventDetailScreenState extends State<EventDetailScreen> {
               ),
 
               // Indicator badge if disabled
-              if (!canVote) ...[
+              if (!canVote && !isOwnPost) ...[
                 const SizedBox(width: 6),
                 Tooltip(
-                  message: isOwnPost
-                      ? 'Authors cannot verify or dispute their own reports'
-                      : 'Only eyewitnesses inside ${event.tagName} (${event.formattedRadius}) can vote',
+                  message: 'Only eyewitnesses inside ${event.tagName} (${event.formattedRadius}) can vote',
                   child: Container(
-                    padding: const EdgeInsets.symmetric(horizontal: 7, vertical: 4),
+                    padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
                     decoration: BoxDecoration(
-                      color: isOwnPost ? const Color(0xFFEFF6FF) : const Color(0xFFF1F5F9),
+                      color: const Color(0xFFF1F5F9),
                       borderRadius: BorderRadius.circular(12),
                       border: Border.all(
-                        color: isOwnPost ? const Color(0xFFBFDBFE) : const Color(0xFFE2E8F0),
+                        color: const Color(0xFFE2E8F0),
                       ),
                     ),
-                    child: Row(
+                    child: const Row(
                       mainAxisSize: MainAxisSize.min,
                       children: [
                         Icon(
-                          isOwnPost ? Icons.person_rounded : Icons.lock_outline_rounded,
+                          Icons.lock_outline_rounded,
                           size: 11,
-                          color: isOwnPost ? const Color(0xFF1D4ED8) : AppColors.textMuted,
+                          color: AppColors.textMuted,
                         ),
-                        const SizedBox(width: 3),
+                        SizedBox(width: 3),
                         Text(
-                          isOwnPost ? 'Your Post' : 'Outside Radius',
+                          'Outside Radius',
                           style: TextStyle(
                             fontSize: 10,
-                            color: isOwnPost ? const Color(0xFF1D4ED8) : AppColors.textMuted,
-                            fontWeight: FontWeight.w700,
+                            color: AppColors.textMuted,
+                            fontWeight: FontWeight.w800,
                           ),
                         ),
                       ],
@@ -841,7 +905,7 @@ class _EventDetailScreenState extends State<EventDetailScreen> {
                   decoration: BoxDecoration(
                     color: const Color(0xFFF1F5F9),
                     borderRadius: BorderRadius.circular(20),
-                    border: Border.all(color: AppColors.border),
+                    border: Border.all(color: const Color(0xFFE2E8F0)),
                   ),
                   child: Row(
                     children: [
@@ -852,7 +916,7 @@ class _EventDetailScreenState extends State<EventDetailScreen> {
                         style: const TextStyle(
                           color: AppColors.textPrimary,
                           fontSize: 12,
-                          fontWeight: FontWeight.w700,
+                          fontWeight: FontWeight.w800,
                         ),
                       ),
                     ],

@@ -52,14 +52,21 @@ class _TrustBadgeState extends State<TrustBadge> with SingleTickerProviderStateM
       onTap: widget.onTap,
       borderRadius: BorderRadius.circular(20),
       child: Container(
-        padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+        padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4.5),
         decoration: BoxDecoration(
-          color: AppColors.verifiedGreen.withValues(alpha: 0.12),
+          color: const Color(0xFFE8F7F0), // Translucent liquid emerald tint
           borderRadius: BorderRadius.circular(20),
           border: Border.all(
-            color: AppColors.verifiedGreen.withValues(alpha: 0.4),
-            width: 1,
+            color: AppColors.verifiedGreen.withValues(alpha: 0.35),
+            width: 0.9,
           ),
+          boxShadow: [
+            BoxShadow(
+              color: AppColors.verifiedGreen.withValues(alpha: 0.08),
+              blurRadius: 8,
+              offset: const Offset(0, 2),
+            ),
+          ],
         ),
         child: Row(
           mainAxisSize: MainAxisSize.min,
@@ -77,7 +84,7 @@ class _TrustBadgeState extends State<TrustBadge> with SingleTickerProviderStateM
                       boxShadow: [
                         BoxShadow(
                           color: AppColors.verifiedGreen.withValues(alpha: 0.6),
-                          blurRadius: 4 * _pulseAnimation.value,
+                          blurRadius: 5 * _pulseAnimation.value,
                           spreadRadius: 2 * (_pulseAnimation.value - 0.8),
                         ),
                       ],
@@ -98,26 +105,19 @@ class _TrustBadgeState extends State<TrustBadge> with SingleTickerProviderStateM
             Text(
               widget.label,
               style: const TextStyle(
-                color: AppColors.verifiedGreen,
-                fontSize: 10.5,
-                fontWeight: FontWeight.w800,
-                letterSpacing: 0.6,
+                color: AppColors.verifiedGreenText,
+                fontSize: 10,
+                fontWeight: FontWeight.w900,
+                letterSpacing: 0.8,
               ),
             ),
-            const SizedBox(width: 5),
-            Container(
-              padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 1),
-              decoration: BoxDecoration(
-                color: AppColors.verifiedGreen.withValues(alpha: 0.2),
-                borderRadius: BorderRadius.circular(6),
-              ),
-              child: Text(
-                '${widget.confidenceScore.toStringAsFixed(0)}%',
-                style: const TextStyle(
-                  color: AppColors.verifiedGreen,
-                  fontSize: 10,
-                  fontWeight: FontWeight.w700,
-                ),
+            const SizedBox(width: 4),
+            Text(
+              '${widget.confidenceScore.toStringAsFixed(0)}%',
+              style: const TextStyle(
+                color: AppColors.verifiedGreenText,
+                fontSize: 10,
+                fontWeight: FontWeight.w800,
               ),
             ),
           ],

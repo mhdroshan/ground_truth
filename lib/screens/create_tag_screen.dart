@@ -8,6 +8,7 @@ import '../services/google_places_service.dart';
 import '../theme/app_colors.dart';
 import '../utils/geofence_math.dart';
 import '../widgets/map/tactical_radar_map.dart';
+import '../widgets/common/glass_card.dart';
 import 'event_detail_screen.dart';
 
 class CreateTagScreen extends StatefulWidget {
@@ -256,73 +257,34 @@ class _CreateTagScreenState extends State<CreateTagScreen> {
     );
 
     return Scaffold(
-      backgroundColor: const Color(0xFFF8FAFC),
+      backgroundColor: AppColors.background,
       appBar: AppBar(
-        backgroundColor: Colors.white,
+        backgroundColor: Colors.white.withValues(alpha: 0.9),
+        surfaceTintColor: Colors.transparent,
+        elevation: 0,
         leading: IconButton(
-          icon: const Icon(Icons.arrow_back, color: AppColors.primaryNavy),
+          icon: const Icon(Icons.arrow_back_rounded, color: AppColors.primaryNavy),
           onPressed: () => Navigator.pop(context),
         ),
         title: const Text(
           'Create Event Tag',
           style: TextStyle(
-            color: AppColors.primaryNavy,
-            fontSize: 18,
-            fontWeight: FontWeight.w800,
+            color: AppColors.textPrimary,
+            fontSize: 17,
+            fontWeight: FontWeight.w900,
+            letterSpacing: -0.4,
           ),
         ),
-        actions: [
-          Padding(
-            padding: const EdgeInsets.only(right: 16),
-            child: Center(
-              child: Container(
-                padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
-                decoration: BoxDecoration(
-                  color: const Color(0xFFD0E1FD),
-                  borderRadius: BorderRadius.circular(16),
-                ),
-                child: const Row(
-                  mainAxisSize: MainAxisSize.min,
-                  children: [
-                    Icon(Icons.shield_rounded, size: 14, color: AppColors.primaryNavy),
-                    SizedBox(width: 4),
-                    Text(
-                      'Truth Geofence',
-                      style: TextStyle(
-                        color: AppColors.primaryNavy,
-                        fontSize: 11,
-                        fontWeight: FontWeight.w700,
-                      ),
-                    ),
-                  ],
-                ),
-              ),
-            ),
-          ),
-        ],
       ),
       body: SingleChildScrollView(
         padding: const EdgeInsets.all(16),
         child: Column(
           children: [
             // STEP 1: Select Location using Google Places API
-            Container(
+            GlassCard(
               padding: const EdgeInsets.all(18),
-              decoration: BoxDecoration(
-                color: Colors.white,
-                borderRadius: BorderRadius.circular(16),
-                border: Border.all(
-                  color: _selectedLocation != null ? AppColors.primaryNavy : AppColors.border,
-                  width: _selectedLocation != null ? 1.5 : 1,
-                ),
-                boxShadow: [
-                  BoxShadow(
-                    color: Colors.black.withValues(alpha: 0.02),
-                    blurRadius: 8,
-                    offset: const Offset(0, 2),
-                  ),
-                ],
-              ),
+              borderRadius: 24,
+              borderColor: _selectedLocation != null ? AppColors.primaryNavy : null,
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
@@ -334,11 +296,12 @@ class _CreateTagScreenState extends State<CreateTagScreen> {
                           Icon(Icons.place_rounded, color: Color(0xFFEA4335), size: 22),
                           SizedBox(width: 8),
                           Text(
-                            'Step 1: Select Event Location',
+                            'Step 1: Event Location',
                             style: TextStyle(
                               color: AppColors.textPrimary,
-                              fontSize: 16,
-                              fontWeight: FontWeight.w800,
+                              fontSize: 15.5,
+                              fontWeight: FontWeight.w900,
+                              letterSpacing: -0.3,
                             ),
                           ),
                         ],
@@ -346,22 +309,15 @@ class _CreateTagScreenState extends State<CreateTagScreen> {
                       Container(
                         padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
                         decoration: BoxDecoration(
-                          color: const Color(0xFFE8F0FE),
+                          color: const Color(0xFFEFF6FF),
                           borderRadius: BorderRadius.circular(10),
+                          border: Border.all(color: const Color(0xFFBFDBFE)),
                         ),
                         child: const Row(
                           mainAxisSize: MainAxisSize.min,
                           children: [
-                            Icon(Icons.map, size: 12, color: Color(0xFF1A73E8)),
+                            Icon(Icons.map_rounded, size: 12, color: Color(0xFF1D4ED8)),
                             SizedBox(width: 4),
-                            Text(
-                              'Google Places',
-                              style: TextStyle(
-                                color: Color(0xFF1A73E8),
-                                fontSize: 10,
-                                fontWeight: FontWeight.w700,
-                              ),
-                            ),
                           ],
                         ),
                       ),
@@ -373,6 +329,7 @@ class _CreateTagScreenState extends State<CreateTagScreen> {
                     style: TextStyle(
                       color: AppColors.textSecondary,
                       fontSize: 12,
+                      height: 1.35,
                     ),
                   ),
                   const SizedBox(height: 14),
@@ -409,21 +366,21 @@ class _CreateTagScreenState extends State<CreateTagScreen> {
                                   },
                                 )
                               : null),
-                      hintText: 'Search place (e.g. Times Square, Connaught Place, Eiffel Tower)...',
+                      hintText: 'Search place (e.g. Times Square, Connaught Place)...',
                       hintStyle: const TextStyle(color: AppColors.textMuted, fontSize: 13),
                       filled: true,
                       fillColor: const Color(0xFFF8FAFC),
                       contentPadding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
                       border: OutlineInputBorder(
-                        borderRadius: BorderRadius.circular(10),
-                        borderSide: const BorderSide(color: AppColors.border),
+                        borderRadius: BorderRadius.circular(14),
+                        borderSide: const BorderSide(color: Color(0xFFE2E8F0)),
                       ),
                       enabledBorder: OutlineInputBorder(
-                        borderRadius: BorderRadius.circular(10),
-                        borderSide: const BorderSide(color: AppColors.border),
+                        borderRadius: BorderRadius.circular(14),
+                        borderSide: const BorderSide(color: Color(0xFFE2E8F0)),
                       ),
                       focusedBorder: OutlineInputBorder(
-                        borderRadius: BorderRadius.circular(10),
+                        borderRadius: BorderRadius.circular(14),
                         borderSide: const BorderSide(color: AppColors.primaryNavy, width: 1.5),
                       ),
                     ),
@@ -436,8 +393,8 @@ class _CreateTagScreenState extends State<CreateTagScreen> {
                       constraints: const BoxConstraints(maxHeight: 220),
                       decoration: BoxDecoration(
                         color: Colors.white,
-                        borderRadius: BorderRadius.circular(12),
-                        border: Border.all(color: AppColors.border),
+                        borderRadius: BorderRadius.circular(16),
+                        border: Border.all(color: const Color(0xFFE2E8F0)),
                         boxShadow: [
                           BoxShadow(
                             color: Colors.black.withValues(alpha: 0.08),
@@ -449,7 +406,7 @@ class _CreateTagScreenState extends State<CreateTagScreen> {
                       child: ListView.separated(
                         shrinkWrap: true,
                         itemCount: _placeSuggestions.length,
-                        separatorBuilder: (context, index) => const Divider(height: 1, color: AppColors.border),
+                        separatorBuilder: (context, index) => const Divider(height: 1, color: Color(0xFFF1F5F9)),
                         itemBuilder: (context, index) {
                           final suggestion = _placeSuggestions[index];
                           return ListTile(
@@ -460,13 +417,13 @@ class _CreateTagScreenState extends State<CreateTagScreen> {
                                 color: const Color(0xFFEFF6FF),
                                 borderRadius: BorderRadius.circular(8),
                               ),
-                              child: const Icon(Icons.location_on, size: 16, color: Color(0xFF2563EB)),
+                              child: const Icon(Icons.location_on_rounded, size: 16, color: Color(0xFF2563EB)),
                             ),
                             title: Text(
                               suggestion.mainText,
                               style: const TextStyle(
                                 fontSize: 13,
-                                fontWeight: FontWeight.w700,
+                                fontWeight: FontWeight.w800,
                                 color: AppColors.textPrimary,
                               ),
                             ),
@@ -488,12 +445,12 @@ class _CreateTagScreenState extends State<CreateTagScreen> {
                   // Selected Place Confirmation Badge
                   const SizedBox(height: 12),
                   Container(
-                    padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                    padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 9),
                     decoration: BoxDecoration(
                       color: _selectedLocation != null
                           ? const Color(0xFFF0FDF4)
                           : const Color(0xFFF8FAFC),
-                      borderRadius: BorderRadius.circular(10),
+                      borderRadius: BorderRadius.circular(14),
                       border: Border.all(
                         color: _selectedLocation != null
                             ? const Color(0xFF86EFAC)
@@ -515,7 +472,7 @@ class _CreateTagScreenState extends State<CreateTagScreen> {
                                 : 'Default: Current GPS Location (${userLoc.label ?? 'Live Coordinates'})',
                             style: TextStyle(
                               fontSize: 11.5,
-                              fontWeight: _selectedLocation != null ? FontWeight.w700 : FontWeight.w500,
+                              fontWeight: _selectedLocation != null ? FontWeight.w800 : FontWeight.w500,
                               color: _selectedLocation != null ? const Color(0xFF15803D) : AppColors.textSecondary,
                             ),
                             maxLines: 2,
@@ -536,7 +493,7 @@ class _CreateTagScreenState extends State<CreateTagScreen> {
                             },
                             child: const Text(
                               'Reset to GPS',
-                              style: TextStyle(fontSize: 11, color: AppColors.primaryNavy, fontWeight: FontWeight.w700),
+                              style: TextStyle(fontSize: 11, color: AppColors.primaryNavy, fontWeight: FontWeight.w800),
                             ),
                           ),
                       ],
@@ -548,20 +505,9 @@ class _CreateTagScreenState extends State<CreateTagScreen> {
             const SizedBox(height: 16),
 
             // Card 2: Tag Identity & Category
-            Container(
+            GlassCard(
               padding: const EdgeInsets.all(18),
-              decoration: BoxDecoration(
-                color: Colors.white,
-                borderRadius: BorderRadius.circular(16),
-                border: Border.all(color: AppColors.border),
-                boxShadow: [
-                  BoxShadow(
-                    color: Colors.black.withValues(alpha: 0.02),
-                    blurRadius: 8,
-                    offset: const Offset(0, 2),
-                  ),
-                ],
-              ),
+              borderRadius: 24,
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
@@ -573,8 +519,9 @@ class _CreateTagScreenState extends State<CreateTagScreen> {
                         'Tag & Event Identity',
                         style: TextStyle(
                           color: AppColors.textPrimary,
-                          fontSize: 16,
-                          fontWeight: FontWeight.w800,
+                          fontSize: 15.5,
+                          fontWeight: FontWeight.w900,
+                          letterSpacing: -0.3,
                         ),
                       ),
                     ],
@@ -586,9 +533,9 @@ class _CreateTagScreenState extends State<CreateTagScreen> {
                     'EVENT / TAG NAME',
                     style: TextStyle(
                       color: AppColors.textMuted,
-                      fontSize: 11,
-                      fontWeight: FontWeight.w800,
-                      letterSpacing: 0.5,
+                      fontSize: 10,
+                      fontWeight: FontWeight.w900,
+                      letterSpacing: 0.8,
                     ),
                   ),
                   const SizedBox(height: 6),
@@ -598,7 +545,7 @@ class _CreateTagScreenState extends State<CreateTagScreen> {
                     style: const TextStyle(
                       color: AppColors.textPrimary,
                       fontSize: 14,
-                      fontWeight: FontWeight.w600,
+                      fontWeight: FontWeight.w700,
                     ),
                     decoration: InputDecoration(
                       prefixText: '# ',
@@ -613,15 +560,15 @@ class _CreateTagScreenState extends State<CreateTagScreen> {
                       fillColor: const Color(0xFFF8FAFC),
                       contentPadding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
                       border: OutlineInputBorder(
-                        borderRadius: BorderRadius.circular(10),
-                        borderSide: const BorderSide(color: AppColors.border),
+                        borderRadius: BorderRadius.circular(14),
+                        borderSide: const BorderSide(color: Color(0xFFE2E8F0)),
                       ),
                       enabledBorder: OutlineInputBorder(
-                        borderRadius: BorderRadius.circular(10),
-                        borderSide: const BorderSide(color: AppColors.border),
+                        borderRadius: BorderRadius.circular(14),
+                        borderSide: const BorderSide(color: Color(0xFFE2E8F0)),
                       ),
                       focusedBorder: OutlineInputBorder(
-                        borderRadius: BorderRadius.circular(10),
+                        borderRadius: BorderRadius.circular(14),
                         borderSide: const BorderSide(color: AppColors.primaryNavy, width: 1.5),
                       ),
                     ),
@@ -633,9 +580,9 @@ class _CreateTagScreenState extends State<CreateTagScreen> {
                     'EVENT CATEGORY',
                     style: TextStyle(
                       color: AppColors.textMuted,
-                      fontSize: 11,
-                      fontWeight: FontWeight.w800,
-                      letterSpacing: 0.5,
+                      fontSize: 10,
+                      fontWeight: FontWeight.w900,
+                      letterSpacing: 0.8,
                     ),
                   ),
                   const SizedBox(height: 8),
@@ -655,12 +602,12 @@ class _CreateTagScreenState extends State<CreateTagScreen> {
                         labelStyle: TextStyle(
                           color: isSelected ? Colors.white : AppColors.textPrimary,
                           fontSize: 12,
-                          fontWeight: isSelected ? FontWeight.w700 : FontWeight.w500,
+                          fontWeight: isSelected ? FontWeight.w800 : FontWeight.w600,
                         ),
                         side: BorderSide(
-                          color: isSelected ? AppColors.primaryNavy : AppColors.border,
+                          color: isSelected ? AppColors.primaryNavy : const Color(0xFFE2E8F0),
                         ),
-                        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+                        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
                       );
                     }).toList(),
                   ),
@@ -671,9 +618,9 @@ class _CreateTagScreenState extends State<CreateTagScreen> {
                     'DESCRIPTION & CONTEXT',
                     style: TextStyle(
                       color: AppColors.textMuted,
-                      fontSize: 11,
-                      fontWeight: FontWeight.w800,
-                      letterSpacing: 0.5,
+                      fontSize: 10,
+                      fontWeight: FontWeight.w900,
+                      letterSpacing: 0.8,
                     ),
                   ),
                   const SizedBox(height: 6),
@@ -688,15 +635,15 @@ class _CreateTagScreenState extends State<CreateTagScreen> {
                       fillColor: const Color(0xFFF8FAFC),
                       contentPadding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
                       border: OutlineInputBorder(
-                        borderRadius: BorderRadius.circular(10),
-                        borderSide: const BorderSide(color: AppColors.border),
+                        borderRadius: BorderRadius.circular(14),
+                        borderSide: const BorderSide(color: Color(0xFFE2E8F0)),
                       ),
                       enabledBorder: OutlineInputBorder(
-                        borderRadius: BorderRadius.circular(10),
-                        borderSide: const BorderSide(color: AppColors.border),
+                        borderRadius: BorderRadius.circular(14),
+                        borderSide: const BorderSide(color: Color(0xFFE2E8F0)),
                       ),
                       focusedBorder: OutlineInputBorder(
-                        borderRadius: BorderRadius.circular(10),
+                        borderRadius: BorderRadius.circular(14),
                         borderSide: const BorderSide(color: AppColors.primaryNavy),
                       ),
                     ),
@@ -706,21 +653,10 @@ class _CreateTagScreenState extends State<CreateTagScreen> {
             ),
             const SizedBox(height: 16),
 
-            // Card 2: Event Scope & Dynamic Range Slider
-            Container(
+            // Card 3: Event Scope & Dynamic Range Slider
+            GlassCard(
               padding: const EdgeInsets.all(18),
-              decoration: BoxDecoration(
-                color: Colors.white,
-                borderRadius: BorderRadius.circular(16),
-                border: Border.all(color: AppColors.border),
-                boxShadow: [
-                  BoxShadow(
-                    color: Colors.black.withValues(alpha: 0.02),
-                    blurRadius: 8,
-                    offset: const Offset(0, 2),
-                  ),
-                ],
-              ),
+              borderRadius: 24,
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
@@ -732,11 +668,12 @@ class _CreateTagScreenState extends State<CreateTagScreen> {
                           Icon(Icons.tune_rounded, color: AppColors.primaryNavy, size: 20),
                           SizedBox(width: 8),
                           Text(
-                            'Event Scope & Geofence Radius',
+                            'Geofence Radius',
                             style: TextStyle(
                               color: AppColors.textPrimary,
-                              fontSize: 15,
-                              fontWeight: FontWeight.w800,
+                              fontSize: 15.5,
+                              fontWeight: FontWeight.w900,
+                              letterSpacing: -0.3,
                             ),
                           ),
                         ],
@@ -746,8 +683,8 @@ class _CreateTagScreenState extends State<CreateTagScreen> {
                         padding: const EdgeInsets.all(3),
                         decoration: BoxDecoration(
                           color: const Color(0xFFF1F5F9),
-                          borderRadius: BorderRadius.circular(8),
-                          border: Border.all(color: AppColors.border),
+                          borderRadius: BorderRadius.circular(10),
+                          border: Border.all(color: const Color(0xFFE2E8F0)),
                         ),
                         child: Row(
                           mainAxisSize: MainAxisSize.min,
@@ -761,14 +698,14 @@ class _CreateTagScreenState extends State<CreateTagScreen> {
                   ),
                   const SizedBox(height: 14),
 
-                  // Scope Selection Tabs: City Wide | State Wide | Nation Wide
+                  // Scope Selection Tabs
                   const Text(
                     'SELECT EVENT TYPE',
                     style: TextStyle(
                       color: AppColors.textMuted,
-                      fontSize: 11,
-                      fontWeight: FontWeight.w800,
-                      letterSpacing: 0.5,
+                      fontSize: 10,
+                      fontWeight: FontWeight.w900,
+                      letterSpacing: 0.8,
                     ),
                   ),
                   const SizedBox(height: 8),
@@ -780,14 +717,14 @@ class _CreateTagScreenState extends State<CreateTagScreen> {
                           padding: const EdgeInsets.symmetric(horizontal: 3),
                           child: InkWell(
                             onTap: () => _onScopeChanged(scope),
-                            borderRadius: BorderRadius.circular(12),
+                            borderRadius: BorderRadius.circular(14),
                             child: Container(
                               padding: const EdgeInsets.symmetric(vertical: 12, horizontal: 8),
                               decoration: BoxDecoration(
-                                color: isSelected ? const Color(0xFFD0E1FD) : const Color(0xFFF8FAFC),
-                                borderRadius: BorderRadius.circular(12),
+                                color: isSelected ? AppColors.primaryNavy.withValues(alpha: 0.08) : const Color(0xFFF8FAFC),
+                                borderRadius: BorderRadius.circular(14),
                                 border: Border.all(
-                                  color: isSelected ? AppColors.primaryNavy : AppColors.border,
+                                  color: isSelected ? AppColors.primaryNavy : const Color(0xFFE2E8F0),
                                   width: isSelected ? 1.5 : 1,
                                 ),
                               ),
@@ -808,7 +745,7 @@ class _CreateTagScreenState extends State<CreateTagScreen> {
                                     style: TextStyle(
                                       color: isSelected ? AppColors.primaryNavy : AppColors.textPrimary,
                                       fontSize: 12,
-                                      fontWeight: isSelected ? FontWeight.w800 : FontWeight.w600,
+                                      fontWeight: isSelected ? FontWeight.w900 : FontWeight.w600,
                                     ),
                                     textAlign: TextAlign.center,
                                   ),
@@ -820,7 +757,7 @@ class _CreateTagScreenState extends State<CreateTagScreen> {
                                     style: TextStyle(
                                       color: isSelected ? AppColors.primaryNavy : AppColors.textMuted,
                                       fontSize: 10,
-                                      fontWeight: FontWeight.w600,
+                                      fontWeight: FontWeight.w700,
                                     ),
                                   ),
                                 ],
@@ -847,8 +784,8 @@ class _CreateTagScreenState extends State<CreateTagScreen> {
                     padding: const EdgeInsets.all(14),
                     decoration: BoxDecoration(
                       color: const Color(0xFFF8FAFC),
-                      borderRadius: BorderRadius.circular(14),
-                      border: Border.all(color: AppColors.border),
+                      borderRadius: BorderRadius.circular(16),
+                      border: Border.all(color: const Color(0xFFE2E8F0)),
                     ),
                     child: Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
@@ -863,9 +800,9 @@ class _CreateTagScreenState extends State<CreateTagScreen> {
                                   'ALLOWED POSTING RADIUS',
                                   style: TextStyle(
                                     color: AppColors.textMuted,
-                                    fontSize: 10.5,
-                                    fontWeight: FontWeight.w800,
-                                    letterSpacing: 0.5,
+                                    fontSize: 10,
+                                    fontWeight: FontWeight.w900,
+                                    letterSpacing: 0.8,
                                   ),
                                 ),
                                 const SizedBox(height: 2),
@@ -888,7 +825,7 @@ class _CreateTagScreenState extends State<CreateTagScreen> {
                                 '${_radiusValue.toStringAsFixed(_radiusValue < 10 ? 1 : 0)} $_selectedUnit',
                                 style: const TextStyle(
                                   color: Colors.white,
-                                  fontSize: 14,
+                                  fontSize: 13.5,
                                   fontWeight: FontWeight.w900,
                                 ),
                               ),
@@ -921,15 +858,15 @@ class _CreateTagScreenState extends State<CreateTagScreen> {
                           children: [
                             Text(
                               'Min: ${_minRadius.toStringAsFixed(1)} $_selectedUnit',
-                              style: const TextStyle(color: AppColors.textMuted, fontSize: 11, fontWeight: FontWeight.w600),
+                              style: const TextStyle(color: AppColors.textMuted, fontSize: 10.5, fontWeight: FontWeight.w700),
                             ),
                             Text(
                               'Scope: ${_selectedScope.label}',
-                              style: const TextStyle(color: AppColors.primaryNavy, fontSize: 11, fontWeight: FontWeight.w700),
+                              style: const TextStyle(color: AppColors.primaryNavy, fontSize: 11, fontWeight: FontWeight.w800),
                             ),
                             Text(
                               'Max: ${_maxRadius.toStringAsFixed(0)} $_selectedUnit',
-                              style: const TextStyle(color: AppColors.textMuted, fontSize: 11, fontWeight: FontWeight.w600),
+                              style: const TextStyle(color: AppColors.textMuted, fontSize: 10.5, fontWeight: FontWeight.w700),
                             ),
                           ],
                         ),
@@ -941,21 +878,10 @@ class _CreateTagScreenState extends State<CreateTagScreen> {
             ),
             const SizedBox(height: 16),
 
-            // Card 3: Live Radar Map Geofence Preview
-            Container(
+            // Card 4: Live Radar Map Geofence Preview
+            GlassCard(
               padding: const EdgeInsets.all(18),
-              decoration: BoxDecoration(
-                color: Colors.white,
-                borderRadius: BorderRadius.circular(16),
-                border: Border.all(color: AppColors.border),
-                boxShadow: [
-                  BoxShadow(
-                    color: Colors.black.withValues(alpha: 0.02),
-                    blurRadius: 8,
-                    offset: const Offset(0, 2),
-                  ),
-                ],
-              ),
+              borderRadius: 24,
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
@@ -970,8 +896,9 @@ class _CreateTagScreenState extends State<CreateTagScreen> {
                             'Geofence Boundary Map',
                             style: TextStyle(
                               color: AppColors.textPrimary,
-                              fontSize: 15,
-                              fontWeight: FontWeight.w800,
+                              fontSize: 15.5,
+                              fontWeight: FontWeight.w900,
+                              letterSpacing: -0.3,
                             ),
                           ),
                         ],
@@ -999,7 +926,7 @@ class _CreateTagScreenState extends State<CreateTagScreen> {
                               style: TextStyle(
                                 color: _selectedLocation != null ? const Color(0xFF1D4ED8) : const Color(0xFF15803D),
                                 fontSize: 9.5,
-                                fontWeight: FontWeight.w800,
+                                fontWeight: FontWeight.w900,
                               ),
                             ),
                           ],
@@ -1010,16 +937,16 @@ class _CreateTagScreenState extends State<CreateTagScreen> {
                   const SizedBox(height: 8),
                   Text(
                     'Anchored to: ${activeAnchor.label ?? 'Current Location'} (${activeAnchor.latitude.toStringAsFixed(4)}, ${activeAnchor.longitude.toStringAsFixed(4)})',
-                    style: const TextStyle(color: AppColors.textSecondary, fontSize: 12, fontWeight: FontWeight.w600),
+                    style: const TextStyle(color: AppColors.textSecondary, fontSize: 11.5, fontWeight: FontWeight.w600),
                   ),
                   const SizedBox(height: 12),
 
                   // Embedded Map View with Radar Circle
                   Container(
-                    height: 220,
+                    height: 250,
                     decoration: BoxDecoration(
-                      borderRadius: BorderRadius.circular(14),
-                      border: Border.all(color: AppColors.border),
+                      borderRadius: BorderRadius.circular(16),
+                      border: Border.all(color: const Color(0xFFE2E8F0)),
                     ),
                     clipBehavior: Clip.antiAlias,
                     child: Stack(
@@ -1028,7 +955,15 @@ class _CreateTagScreenState extends State<CreateTagScreen> {
                           event: previewEvent,
                           userLocation: userLoc,
                           customCenter: activeAnchor,
-                          height: 220,
+                          height: 250,
+                          isInteractive: true,
+                          onLocationSelected: (newPoint) {
+                            setState(() {
+                              _selectedLocation = newPoint;
+                              _locationSearchController.text =
+                                  '${newPoint.latitude.toStringAsFixed(4)}, ${newPoint.longitude.toStringAsFixed(4)}';
+                            });
+                          },
                         ),
                         // Overlay Indicator
                         Positioned(
@@ -1068,14 +1003,14 @@ class _CreateTagScreenState extends State<CreateTagScreen> {
             // Submit Button
             SizedBox(
               width: double.infinity,
-              height: 54,
+              height: 52,
               child: ElevatedButton(
                 style: ElevatedButton.styleFrom(
                   backgroundColor: AppColors.primaryNavy,
                   foregroundColor: Colors.white,
                   elevation: 2,
                   shape: RoundedRectangleBorder(
-                    borderRadius: BorderRadius.circular(14),
+                    borderRadius: BorderRadius.circular(16),
                   ),
                 ),
                 onPressed: _isCreating ? null : _submitTag,
@@ -1088,11 +1023,11 @@ class _CreateTagScreenState extends State<CreateTagScreen> {
                     : Row(
                         mainAxisAlignment: MainAxisAlignment.center,
                         children: [
-                          const Icon(Icons.add_location_alt_rounded, size: 20),
+                          const Icon(Icons.add_location_alt_rounded, size: 19),
                           const SizedBox(width: 8),
                           Text(
                             'Activate Tag "${_tagNameController.text.isNotEmpty ? (_tagNameController.text.startsWith('#') ? _tagNameController.text : '#${_tagNameController.text}') : '#NewTag'}"',
-                            style: const TextStyle(fontSize: 15, fontWeight: FontWeight.w800),
+                            style: const TextStyle(fontSize: 14.5, fontWeight: FontWeight.w900),
                           ),
                         ],
                       ),
@@ -1109,12 +1044,12 @@ class _CreateTagScreenState extends State<CreateTagScreen> {
     final isSelected = _selectedUnit == unit;
     return InkWell(
       onTap: () => _onUnitChanged(unit),
-      borderRadius: BorderRadius.circular(6),
+      borderRadius: BorderRadius.circular(8),
       child: Container(
         padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
         decoration: BoxDecoration(
           color: isSelected ? Colors.white : Colors.transparent,
-          borderRadius: BorderRadius.circular(6),
+          borderRadius: BorderRadius.circular(8),
           boxShadow: isSelected
               ? [
                   BoxShadow(
@@ -1129,7 +1064,7 @@ class _CreateTagScreenState extends State<CreateTagScreen> {
           style: TextStyle(
             color: isSelected ? AppColors.primaryNavy : AppColors.textSecondary,
             fontSize: 11,
-            fontWeight: isSelected ? FontWeight.w800 : FontWeight.w600,
+            fontWeight: isSelected ? FontWeight.w900 : FontWeight.w600,
           ),
         ),
       ),

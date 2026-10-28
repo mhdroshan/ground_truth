@@ -1,3 +1,4 @@
+import 'dart:ui';
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import 'package:intl/intl.dart';
@@ -81,307 +82,336 @@ class _CommentsSheetState extends State<CommentsSheet> {
     final isInside = widget.event.isUserInside(locationService.currentLocation);
     final comments = appState.getCommentsForPost(widget.post.id);
 
-    return Container(
-      height: MediaQuery.of(context).size.height * 0.82,
-      decoration: const BoxDecoration(
-        color: Colors.white,
-        borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
-        boxShadow: [
-          BoxShadow(
-            color: Colors.black26,
-            blurRadius: 16,
-            offset: Offset(0, -4),
-          ),
-        ],
-      ),
-      child: Column(
-        children: [
-          // Drag handle
-          const SizedBox(height: 12),
-          Container(
-            width: 44,
-            height: 4,
-            decoration: BoxDecoration(
-              color: const Color(0xFFCBD5E1),
-              borderRadius: BorderRadius.circular(2),
+    return ClipRRect(
+      borderRadius: const BorderRadius.vertical(top: Radius.circular(28)),
+      child: BackdropFilter(
+        filter: ImageFilter.blur(sigmaX: 24, sigmaY: 24),
+        child: Container(
+          height: MediaQuery.of(context).size.height * 0.82,
+          decoration: BoxDecoration(
+            color: Colors.white.withValues(alpha: 0.95),
+            borderRadius: const BorderRadius.vertical(top: Radius.circular(28)),
+            border: Border(
+              top: BorderSide(color: Colors.white.withValues(alpha: 0.8), width: 1.5),
             ),
+            boxShadow: [
+              BoxShadow(
+                color: AppColors.primaryNavy.withValues(alpha: 0.1),
+                blurRadius: 28,
+                offset: const Offset(0, -6),
+              ),
+            ],
           ),
-          const SizedBox(height: 12),
+          child: Column(
+            children: [
+              // Drag handle
+              const SizedBox(height: 12),
+              Container(
+                width: 44,
+                height: 4,
+                decoration: BoxDecoration(
+                  color: const Color(0xFFCBD5E1),
+                  borderRadius: BorderRadius.circular(2),
+                ),
+              ),
+              const SizedBox(height: 14),
 
-          // Header
-          Padding(
-            padding: const EdgeInsets.symmetric(horizontal: 20),
-            child: Row(
-              mainAxisAlignment: MainAxisAlignment.spaceBetween,
-              children: [
-                Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
+              // Header
+              Padding(
+                padding: const EdgeInsets.symmetric(horizontal: 20),
+                child: Row(
+                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
                   children: [
-                    const Text(
-                      'Community Discussion',
-                      style: TextStyle(
-                        color: AppColors.primaryNavy,
-                        fontSize: 17,
-                        fontWeight: FontWeight.w800,
-                      ),
+                    Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        const Text(
+                          'Community Discussion',
+                          style: TextStyle(
+                            color: AppColors.textPrimary,
+                            fontSize: 17,
+                            fontWeight: FontWeight.w900,
+                            letterSpacing: -0.4,
+                          ),
+                        ),
+                        const SizedBox(height: 2),
+                        Text(
+                          '${comments.length} responses • Open worldwide',
+                          style: const TextStyle(
+                            color: AppColors.textSecondary,
+                            fontSize: 11.5,
+                            fontWeight: FontWeight.w500,
+                          ),
+                        ),
+                      ],
                     ),
-                    Text(
-                      '${comments.length} responses • Open to all readers',
-                      style: const TextStyle(
-                        color: AppColors.textSecondary,
-                        fontSize: 12,
+                    Container(
+                      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+                      decoration: BoxDecoration(
+                        color: isInside ? const Color(0xFFDCFCE7) : const Color(0xFFEFF6FF),
+                        borderRadius: BorderRadius.circular(14),
+                        border: Border.all(
+                          color: isInside ? const Color(0xFF86EFAC) : const Color(0xFFBFDBFE),
+                        ),
+                      ),
+                      child: Row(
+                        children: [
+                          Icon(
+                            isInside ? Icons.my_location_rounded : Icons.public_rounded,
+                            size: 13,
+                            color: isInside ? const Color(0xFF15803D) : AppColors.primaryNavy,
+                          ),
+                          const SizedBox(width: 5),
+                          Text(
+                            isInside ? 'YOU ARE ON-SITE' : 'REMOTE OBSERVER',
+                            style: TextStyle(
+                              color: isInside ? const Color(0xFF15803D) : AppColors.primaryNavy,
+                              fontSize: 9.5,
+                              fontWeight: FontWeight.w900,
+                              letterSpacing: 0.5,
+                            ),
+                          ),
+                        ],
                       ),
                     ),
                   ],
                 ),
-                Container(
-                  padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+              ),
+              const SizedBox(height: 10),
+
+              // Info Banner
+              Padding(
+                padding: const EdgeInsets.symmetric(horizontal: 16),
+                child: Container(
+                  padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 9),
                   decoration: BoxDecoration(
-                    color: isInside ? const Color(0xFFDCFCE7) : const Color(0xFFD0E1FD),
-                    borderRadius: BorderRadius.circular(16),
+                    color: const Color(0xFFF8FAFC),
+                    borderRadius: BorderRadius.circular(14),
+                    border: Border.all(color: const Color(0xFFE2E8F0)),
                   ),
-                  child: Row(
+                  child: const Row(
                     children: [
-                      Icon(
-                        isInside ? Icons.my_location : Icons.public,
-                        size: 13,
-                        color: isInside ? const Color(0xFF15803D) : AppColors.primaryNavy,
-                      ),
-                      const SizedBox(width: 4),
-                      Text(
-                        isInside ? 'YOU ARE ON-SITE' : 'REMOTE OBSERVER',
-                        style: TextStyle(
-                          color: isInside ? const Color(0xFF15803D) : AppColors.primaryNavy,
-                          fontSize: 10,
-                          fontWeight: FontWeight.w800,
+                      Icon(Icons.info_outline_rounded, size: 16, color: AppColors.textSecondary),
+                      SizedBox(width: 8),
+                      Expanded(
+                        child: Text(
+                          'Anyone worldwide can comment and read. Original reports & news verification remain restricted to on-site eyewitnesses.',
+                          style: TextStyle(color: AppColors.textSecondary, fontSize: 11, height: 1.35),
                         ),
                       ),
                     ],
                   ),
                 ),
-              ],
-            ),
-          ),
-          const SizedBox(height: 8),
-
-          // Info Banner
-          Padding(
-            padding: const EdgeInsets.symmetric(horizontal: 16),
-            child: Container(
-              padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
-              decoration: BoxDecoration(
-                color: const Color(0xFFF8FAFC),
-                borderRadius: BorderRadius.circular(10),
-                border: Border.all(color: AppColors.border),
               ),
-              child: const Row(
-                children: [
-                  Icon(Icons.info_outline, size: 16, color: AppColors.textSecondary),
-                  SizedBox(width: 8),
-                  Expanded(
-                    child: Text(
-                      'Anyone worldwide can comment and read. Original reports & news verification remain restricted to on-site eyewitnesses.',
-                      style: TextStyle(color: AppColors.textSecondary, fontSize: 11, height: 1.3),
-                    ),
-                  ),
-                ],
-              ),
-            ),
-          ),
-          const SizedBox(height: 8),
-          const Divider(height: 1),
+              const SizedBox(height: 10),
+              const Divider(height: 1, color: Color(0xFFF1F5F9)),
 
-          // Comments List
-          Expanded(
-            child: comments.isEmpty
-                ? const Center(
-                    child: Padding(
-                      padding: EdgeInsets.all(24),
-                      child: Text(
-                        'No comments yet.\nBe the first to join the conversation and ask questions.',
-                        textAlign: TextAlign.center,
-                        style: TextStyle(color: AppColors.textMuted, fontSize: 13.5, height: 1.4),
-                      ),
-                    ),
-                  )
-                : ListView.separated(
-                    padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
-                    itemCount: comments.length,
-                    separatorBuilder: (context, index) => const SizedBox(height: 12),
-                    itemBuilder: (context, index) {
-                      final cmt = comments[index];
-                      return Row(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          InkWell(
-                            onTap: () {
-                              Navigator.push(
-                                context,
-                                MaterialPageRoute(
-                                  builder: (context) => ProfileScreen(
-                                    userId: cmt.authorId,
-                                    initialAuthorName: cmt.authorName,
-                                    initialAuthorAvatar: cmt.authorAvatar,
-                                    initialAuthorTrustScore: cmt.authorTrustScore,
-                                  ),
-                                ),
-                              );
-                            },
-                            borderRadius: BorderRadius.circular(17),
-                            child: CircleAvatar(
-                              radius: 17,
-                              backgroundColor: const Color(0xFFF1F5F9),
-                              backgroundImage: NetworkImage(cmt.authorAvatar),
-                              onBackgroundImageError: (error, stack) {},
-                            ),
+              // Comments List
+              Expanded(
+                child: comments.isEmpty
+                    ? const Center(
+                        child: Padding(
+                          padding: EdgeInsets.all(24),
+                          child: Text(
+                            'No comments yet.\nBe the first to join the conversation and ask questions.',
+                            textAlign: TextAlign.center,
+                            style: TextStyle(color: AppColors.textMuted, fontSize: 13, height: 1.4),
                           ),
-                          const SizedBox(width: 10),
-                          Expanded(
-                            child: Container(
-                              padding: const EdgeInsets.all(12),
-                              decoration: BoxDecoration(
-                                color: const Color(0xFFF8FAFC),
-                                borderRadius: BorderRadius.circular(12),
-                                border: Border.all(color: AppColors.border),
+                        ),
+                      )
+                    : ListView.separated(
+                        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+                        itemCount: comments.length,
+                        separatorBuilder: (context, index) => const SizedBox(height: 10),
+                        itemBuilder: (context, index) {
+                          final cmt = comments[index];
+                          return Row(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              InkWell(
+                                onTap: () {
+                                  Navigator.push(
+                                    context,
+                                    MaterialPageRoute(
+                                      builder: (context) => ProfileScreen(
+                                        userId: cmt.authorId,
+                                        initialAuthorName: cmt.authorName,
+                                        initialAuthorAvatar: cmt.authorAvatar,
+                                        initialAuthorTrustScore: cmt.authorTrustScore,
+                                      ),
+                                    ),
+                                  );
+                                },
+                                borderRadius: BorderRadius.circular(18),
+                                child: CircleAvatar(
+                                  radius: 18,
+                                  backgroundColor: const Color(0xFFF1F5F9),
+                                  backgroundImage: NetworkImage(cmt.authorAvatar),
+                                  onBackgroundImageError: (error, stack) {},
+                                ),
                               ),
-                              child: Column(
-                                crossAxisAlignment: CrossAxisAlignment.start,
-                                children: [
-                                  Row(
+                              const SizedBox(width: 10),
+                              Expanded(
+                                child: Container(
+                                  padding: const EdgeInsets.all(12),
+                                  decoration: BoxDecoration(
+                                    color: Colors.white,
+                                    borderRadius: BorderRadius.circular(16),
+                                    border: Border.all(color: const Color(0xFFF1F5F9)),
+                                    boxShadow: [
+                                      BoxShadow(
+                                        color: Colors.black.withValues(alpha: 0.02),
+                                        blurRadius: 4,
+                                        offset: const Offset(0, 1),
+                                      ),
+                                    ],
+                                  ),
+                                  child: Column(
+                                    crossAxisAlignment: CrossAxisAlignment.start,
                                     children: [
-                                      InkWell(
-                                        onTap: () {
-                                          Navigator.push(
-                                            context,
-                                            MaterialPageRoute(
-                                              builder: (context) => ProfileScreen(
-                                                userId: cmt.authorId,
-                                                initialAuthorName: cmt.authorName,
-                                                initialAuthorAvatar: cmt.authorAvatar,
-                                                initialAuthorTrustScore: cmt.authorTrustScore,
+                                      Row(
+                                        children: [
+                                          InkWell(
+                                            onTap: () {
+                                              Navigator.push(
+                                                context,
+                                                MaterialPageRoute(
+                                                  builder: (context) => ProfileScreen(
+                                                    userId: cmt.authorId,
+                                                    initialAuthorName: cmt.authorName,
+                                                    initialAuthorAvatar: cmt.authorAvatar,
+                                                    initialAuthorTrustScore: cmt.authorTrustScore,
+                                                  ),
+                                                ),
+                                              );
+                                            },
+                                            child: Text(
+                                              cmt.authorName,
+                                              style: const TextStyle(
+                                                color: AppColors.textPrimary,
+                                                fontSize: 13,
+                                                fontWeight: FontWeight.w800,
                                               ),
                                             ),
-                                          );
-                                        },
-                                        child: Text(
-                                          cmt.authorName,
-                                          style: const TextStyle(
-                                            color: AppColors.textPrimary,
-                                            fontSize: 13.5,
-                                            fontWeight: FontWeight.w700,
                                           ),
-                                        ),
+                                          const Spacer(),
+                                          Text(
+                                            DateFormat('h:mm a').format(cmt.createdAt),
+                                            style: const TextStyle(
+                                              color: AppColors.textMuted,
+                                              fontSize: 10.5,
+                                            ),
+                                          ),
+                                        ],
                                       ),
-
-                                      const Spacer(),
+                                      const SizedBox(height: 5),
                                       Text(
-                                        DateFormat('h:mm a').format(cmt.createdAt),
+                                        cmt.text,
                                         style: const TextStyle(
-                                          color: AppColors.textMuted,
-                                          fontSize: 10.5,
+                                          color: AppColors.textPrimary,
+                                          fontSize: 13,
+                                          height: 1.4,
                                         ),
+                                      ),
+                                      const SizedBox(height: 6),
+                                      Row(
+                                        children: [
+                                          Icon(
+                                            cmt.isVerifiedOnSite ? Icons.check_circle_rounded : Icons.public_rounded,
+                                            size: 12,
+                                            color: cmt.isVerifiedOnSite
+                                                ? const Color(0xFF15803D)
+                                                : const Color(0xFF64748B),
+                                          ),
+                                          const SizedBox(width: 4),
+                                          Text(
+                                            cmt.isVerifiedOnSite
+                                                ? 'Verified (${GeofenceMath.formatDistance(cmt.distanceMeters)} from epicenter)'
+                                                : 'Remote Observer (${GeofenceMath.formatDistance(cmt.distanceMeters)} away)',
+                                            style: TextStyle(
+                                              color: cmt.isVerifiedOnSite
+                                                  ? const Color(0xFF15803D)
+                                                  : const Color(0xFF64748B),
+                                              fontSize: 9.5,
+                                              fontWeight: FontWeight.w700,
+                                            ),
+                                          ),
+                                        ],
                                       ),
                                     ],
                                   ),
-                                  const SizedBox(height: 5),
-                                  Text(
-                                    cmt.text,
-                                    style: const TextStyle(
-                                      color: AppColors.textPrimary,
-                                      fontSize: 13,
-                                      height: 1.35,
-                                    ),
-                                  ),
-                                  const SizedBox(height: 6),
-                                  Row(
-                                    children: [
-                                      Icon(
-                                        cmt.isVerifiedOnSite ? Icons.check_circle : Icons.public,
-                                        size: 12,
-                                        color: cmt.isVerifiedOnSite
-                                            ? const Color(0xFF15803D)
-                                            : const Color(0xFF475569),
-                                      ),
-                                      const SizedBox(width: 4),
-                                      Text(
-                                        cmt.isVerifiedOnSite
-                                            ? 'Verified (${GeofenceMath.formatDistance(cmt.distanceMeters)} from epicenter)'
-                                            : 'Remote Observer (${GeofenceMath.formatDistance(cmt.distanceMeters)} away)',
-                                        style: TextStyle(
-                                          color: cmt.isVerifiedOnSite
-                                              ? const Color(0xFF15803D)
-                                              : const Color(0xFF64748B),
-                                          fontSize: 10,
-                                          fontWeight: FontWeight.w600,
-                                        ),
-                                      ),
-                                    ],
-                                  ),
-                                ],
+                                ),
                               ),
-                            ),
-                          ),
-                        ],
-                      );
-                    },
-                  ),
-          ),
+                            ],
+                          );
+                        },
+                      ),
+              ),
 
-          // Universal Comment Input Box (OPEN TO EVERY USER FROM ANYWHERE)
-          Container(
-            padding: EdgeInsets.fromLTRB(16, 10, 16, MediaQuery.of(context).viewInsets.bottom + 16),
-            decoration: const BoxDecoration(
-              color: Colors.white,
-              border: Border(top: BorderSide(color: AppColors.border)),
-            ),
-            child: Row(
-              children: [
-                Expanded(
-                  child: TextField(
-                    controller: _commentController,
-                    style: const TextStyle(color: AppColors.textPrimary, fontSize: 13.5),
-                    decoration: InputDecoration(
-                      hintText: isInside
-                          ? 'Add your on-site observation...'
-                          : 'Ask an eyewitness or add a comment...',
-                      hintStyle: const TextStyle(color: AppColors.textMuted, fontSize: 13),
-                      filled: true,
-                      fillColor: const Color(0xFFF1F5F9),
-                      contentPadding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
-                      border: OutlineInputBorder(
-                        borderRadius: BorderRadius.circular(24),
-                        borderSide: BorderSide.none,
+              // Universal Comment Input Box
+              Container(
+                padding: EdgeInsets.fromLTRB(16, 10, 16, MediaQuery.of(context).viewInsets.bottom + 16),
+                decoration: const BoxDecoration(
+                  color: Colors.white,
+                  border: Border(top: BorderSide(color: Color(0xFFF1F5F9))),
+                ),
+                child: Row(
+                  children: [
+                    Expanded(
+                      child: TextField(
+                        controller: _commentController,
+                        style: const TextStyle(color: AppColors.textPrimary, fontSize: 13.5),
+                        decoration: InputDecoration(
+                          hintText: isInside
+                              ? 'Add your on-site observation...'
+                              : 'Ask an eyewitness or add a comment...',
+                          hintStyle: const TextStyle(color: AppColors.textMuted, fontSize: 13),
+                          filled: true,
+                          fillColor: const Color(0xFFF1F5F9),
+                          contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
+                          border: OutlineInputBorder(
+                            borderRadius: BorderRadius.circular(22),
+                            borderSide: BorderSide.none,
+                          ),
+                        ),
+                        onSubmitted: (_) => _submitComment(),
                       ),
                     ),
-                    onSubmitted: (_) => _submitComment(),
-                  ),
-                ),
-                const SizedBox(width: 10),
-                InkWell(
-                  onTap: _isSubmitting ? null : _submitComment,
-                  borderRadius: BorderRadius.circular(24),
-                  child: Container(
-                    width: 44,
-                    height: 44,
-                    decoration: const BoxDecoration(
-                      color: AppColors.primaryNavy,
-                      shape: BoxShape.circle,
-                    ),
-                    child: _isSubmitting
-                        ? const Center(
-                            child: SizedBox(
-                              width: 18,
-                              height: 18,
-                              child: CircularProgressIndicator(color: Colors.white, strokeWidth: 2),
+                    const SizedBox(width: 10),
+                    InkWell(
+                      onTap: _isSubmitting ? null : _submitComment,
+                      borderRadius: BorderRadius.circular(24),
+                      child: Container(
+                        width: 44,
+                        height: 44,
+                        decoration: BoxDecoration(
+                          color: AppColors.primaryNavy,
+                          shape: BoxShape.circle,
+                          boxShadow: [
+                            BoxShadow(
+                              color: AppColors.primaryNavy.withValues(alpha: 0.25),
+                              blurRadius: 10,
+                              offset: const Offset(0, 3),
                             ),
-                          )
-                        : const Icon(Icons.send_rounded, color: Colors.white, size: 20),
-                  ),
+                          ],
+                        ),
+                        child: _isSubmitting
+                            ? const Center(
+                                child: SizedBox(
+                                  width: 18,
+                                  height: 18,
+                                  child: CircularProgressIndicator(color: Colors.white, strokeWidth: 2),
+                                ),
+                              )
+                            : const Icon(Icons.send_rounded, color: Colors.white, size: 19),
+                      ),
+                    ),
+                  ],
                 ),
-              ],
-            ),
+              ),
+            ],
           ),
-        ],
+        ),
       ),
     );
   }

@@ -1,3 +1,4 @@
+import 'dart:ui';
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import '../models/event_model.dart';
@@ -7,6 +8,7 @@ import '../providers/location_service.dart';
 import '../theme/app_colors.dart';
 import '../widgets/post/post_card.dart';
 import '../widgets/post/verification_restricted_sheet.dart';
+import '../widgets/common/safe_image.dart';
 import 'comments_sheet.dart';
 import 'event_detail_screen.dart';
 
@@ -59,19 +61,20 @@ class _ReadScreenState extends State<ReadScreen> {
             j.bio.toLowerCase().contains(q)).toList();
 
     return Scaffold(
-      backgroundColor: const Color(0xFFF8FAFC),
+      backgroundColor: AppColors.background,
       appBar: AppBar(
-        backgroundColor: Colors.white,
+        backgroundColor: Colors.white.withValues(alpha: 0.85),
+        elevation: 0,
         title: Row(
           children: [
             Container(
-              padding: const EdgeInsets.all(6),
+              padding: const EdgeInsets.all(7),
               decoration: BoxDecoration(
-                color: const Color(0xFFD0E1FD),
-                borderRadius: BorderRadius.circular(8),
+                color: AppColors.primaryNavy.withValues(alpha: 0.1),
+                borderRadius: BorderRadius.circular(10),
               ),
               child: const Icon(
-                Icons.menu_book_rounded,
+                Icons.explore_rounded,
                 color: AppColors.primaryNavy,
                 size: 20,
               ),
@@ -86,7 +89,7 @@ class _ReadScreenState extends State<ReadScreen> {
                     color: AppColors.primaryNavy,
                     fontSize: 18,
                     fontWeight: FontWeight.w900,
-                    letterSpacing: -0.3,
+                    letterSpacing: -0.4,
                   ),
                 ),
                 Text(
@@ -106,26 +109,26 @@ class _ReadScreenState extends State<ReadScreen> {
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            // SEARCH BOX (Moved from Homepage to Read page as requested)
+            // Liquid Glass Search Container
             Padding(
               padding: const EdgeInsets.fromLTRB(16, 14, 16, 10),
               child: Container(
                 padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 2),
                 decoration: BoxDecoration(
                   color: Colors.white,
-                  borderRadius: BorderRadius.circular(16),
-                  border: Border.all(color: AppColors.border),
-                  boxShadow: [
+                  borderRadius: BorderRadius.circular(20),
+                  border: Border.all(color: AppColors.bentoBorder, width: 0.9),
+                  boxShadow: const [
                     BoxShadow(
-                      color: Colors.black.withValues(alpha: 0.03),
-                      blurRadius: 8,
-                      offset: const Offset(0, 2),
+                      color: Color(0x060F172A),
+                      blurRadius: 12,
+                      offset: Offset(0, 3),
                     ),
                   ],
                 ),
                 child: Row(
                   children: [
-                    const Icon(Icons.search, color: AppColors.primaryNavy, size: 22),
+                    const Icon(Icons.search_rounded, color: AppColors.primaryNavy, size: 21),
                     const SizedBox(width: 10),
                     Expanded(
                       child: TextField(
@@ -133,19 +136,25 @@ class _ReadScreenState extends State<ReadScreen> {
                         onChanged: (val) {
                           setState(() => _searchQuery = val);
                         },
-                        style: const TextStyle(color: AppColors.textPrimary, fontSize: 14),
+                        style: const TextStyle(
+                          color: AppColors.textPrimary,
+                          fontSize: 13.5,
+                          fontWeight: FontWeight.w500,
+                        ),
                         decoration: const InputDecoration(
                           hintText: 'Search tags (#FarmersMarch) or journalists (@ananya)...',
                           hintStyle: TextStyle(color: AppColors.textMuted, fontSize: 13),
                           border: InputBorder.none,
+                          enabledBorder: InputBorder.none,
+                          focusedBorder: InputBorder.none,
                           isDense: true,
-                          contentPadding: EdgeInsets.symmetric(vertical: 12),
+                          contentPadding: EdgeInsets.symmetric(vertical: 13),
                         ),
                       ),
                     ),
                     if (_searchQuery.isNotEmpty)
                       IconButton(
-                        icon: const Icon(Icons.close, size: 18, color: AppColors.textMuted),
+                        icon: const Icon(Icons.close_rounded, size: 18, color: AppColors.textMuted),
                         onPressed: () {
                           _searchController.clear();
                           setState(() => _searchQuery = '');
@@ -166,29 +175,37 @@ class _ReadScreenState extends State<ReadScreen> {
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    const Row(
+                    Row(
                       children: [
-                        Icon(Icons.local_fire_department_rounded, color: Color(0xFFD97706), size: 20),
-                        SizedBox(width: 6),
-                        Text(
+                        Container(
+                          padding: const EdgeInsets.all(5),
+                          decoration: BoxDecoration(
+                            color: const Color(0xFFFEF3C7),
+                            borderRadius: BorderRadius.circular(8),
+                          ),
+                          child: const Icon(Icons.local_fire_department_rounded, color: Color(0xFFD97706), size: 16),
+                        ),
+                        const SizedBox(width: 8),
+                        const Text(
                           'Worldwide Trending Posts',
                           style: TextStyle(
                             color: AppColors.textPrimary,
                             fontSize: 17,
                             fontWeight: FontWeight.w900,
+                            letterSpacing: -0.3,
                           ),
                         ),
                       ],
                     ),
-                    const SizedBox(height: 2),
+                    const SizedBox(height: 3),
                     const Text(
-                      'Ranked by highest global engagement, comments, and on-site eyewitness likes',
+                      'Ranked by highest global engagement, verified comments, and eyewitness truth score',
                       style: TextStyle(
                         color: AppColors.textSecondary,
                         fontSize: 11.5,
                       ),
                     ),
-                    const SizedBox(height: 10),
+                    const SizedBox(height: 12),
 
                     // Sort Tabs
                     SingleChildScrollView(
@@ -320,7 +337,7 @@ class _ReadScreenState extends State<ReadScreen> {
                   },
                 ),
 
-              const SizedBox(height: 80),
+              const SizedBox(height: 100),
             ],
           ],
         ),
@@ -337,30 +354,31 @@ class _ReadScreenState extends State<ReadScreen> {
     return InkWell(
       onTap: () => setState(() => _sortBy = sortKey),
       borderRadius: BorderRadius.circular(20),
-      child: Container(
+      child: AnimatedContainer(
+        duration: const Duration(milliseconds: 200),
         padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 7),
         decoration: BoxDecoration(
           color: isSelected ? AppColors.primaryNavy : Colors.white,
           borderRadius: BorderRadius.circular(20),
           border: Border.all(
             color: isSelected ? AppColors.primaryNavy : AppColors.border,
+            width: 0.9,
           ),
-          boxShadow: isSelected
-              ? [
-                  BoxShadow(
-                    color: AppColors.primaryNavy.withValues(alpha: 0.2),
-                    blurRadius: 6,
-                    offset: const Offset(0, 2),
-                  ),
-                ]
-              : null,
+          boxShadow: [
+            if (isSelected)
+              BoxShadow(
+                color: AppColors.primaryNavy.withValues(alpha: 0.18),
+                blurRadius: 8,
+                offset: const Offset(0, 2),
+              ),
+          ],
         ),
         child: Row(
           mainAxisSize: MainAxisSize.min,
           children: [
             Icon(
               icon,
-              size: 14,
+              size: 13,
               color: isSelected ? Colors.white : AppColors.textSecondary,
             ),
             const SizedBox(width: 6),
@@ -368,7 +386,7 @@ class _ReadScreenState extends State<ReadScreen> {
               label,
               style: TextStyle(
                 color: isSelected ? Colors.white : AppColors.textPrimary,
-                fontSize: 12,
+                fontSize: 11.5,
                 fontWeight: isSelected ? FontWeight.w800 : FontWeight.w600,
               ),
             ),
@@ -408,7 +426,7 @@ class _ReadScreenState extends State<ReadScreen> {
               padding: const EdgeInsets.all(32),
               decoration: BoxDecoration(
                 color: Colors.white,
-                borderRadius: BorderRadius.circular(16),
+                borderRadius: BorderRadius.circular(20),
                 border: Border.all(color: AppColors.border),
               ),
               child: const Column(
@@ -420,7 +438,7 @@ class _ReadScreenState extends State<ReadScreen> {
                     style: TextStyle(
                       color: AppColors.textPrimary,
                       fontSize: 15,
-                      fontWeight: FontWeight.w700,
+                      fontWeight: FontWeight.w800,
                     ),
                   ),
                   SizedBox(height: 4),
@@ -437,14 +455,15 @@ class _ReadScreenState extends State<ReadScreen> {
           if ((_searchFilterTab == 0 || _searchFilterTab == 1) && matchingTags.isNotEmpty) ...[
             const Row(
               children: [
-                Icon(Icons.tag, size: 16, color: AppColors.primaryNavy),
+                Icon(Icons.tag_rounded, size: 16, color: AppColors.primaryNavy),
                 SizedBox(width: 6),
                 Text(
                   'Event Tags',
                   style: TextStyle(
                     color: AppColors.textPrimary,
                     fontSize: 15,
-                    fontWeight: FontWeight.w800,
+                    fontWeight: FontWeight.w900,
+                    letterSpacing: -0.2,
                   ),
                 ),
               ],
@@ -465,7 +484,8 @@ class _ReadScreenState extends State<ReadScreen> {
                   style: TextStyle(
                     color: AppColors.textPrimary,
                     fontSize: 15,
-                    fontWeight: FontWeight.w800,
+                    fontWeight: FontWeight.w900,
+                    letterSpacing: -0.2,
                   ),
                 ),
               ],
@@ -483,7 +503,8 @@ class _ReadScreenState extends State<ReadScreen> {
     return InkWell(
       onTap: () => setState(() => _searchFilterTab = index),
       borderRadius: BorderRadius.circular(16),
-      child: Container(
+      child: AnimatedContainer(
+        duration: const Duration(milliseconds: 200),
         padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
         decoration: BoxDecoration(
           color: isSel ? const Color(0xFFD0E1FD) : Colors.white,
@@ -496,7 +517,7 @@ class _ReadScreenState extends State<ReadScreen> {
           label,
           style: TextStyle(
             color: isSel ? AppColors.primaryNavy : AppColors.textSecondary,
-            fontSize: 12,
+            fontSize: 11.5,
             fontWeight: isSel ? FontWeight.w800 : FontWeight.w600,
           ),
         ),
@@ -510,8 +531,15 @@ class _ReadScreenState extends State<ReadScreen> {
       padding: const EdgeInsets.all(14),
       decoration: BoxDecoration(
         color: Colors.white,
-        borderRadius: BorderRadius.circular(14),
-        border: Border.all(color: AppColors.border),
+        borderRadius: BorderRadius.circular(18),
+        border: Border.all(color: AppColors.border, width: 0.9),
+        boxShadow: const [
+          BoxShadow(
+            color: Color(0x060F172A),
+            blurRadius: 8,
+            offset: Offset(0, 2),
+          ),
+        ],
       ),
       child: Row(
         children: [
@@ -519,8 +547,8 @@ class _ReadScreenState extends State<ReadScreen> {
             width: 44,
             height: 44,
             decoration: BoxDecoration(
-              color: const Color(0xFFD0E1FD),
-              borderRadius: BorderRadius.circular(10),
+              color: const Color(0xFFEFF6FF),
+              borderRadius: BorderRadius.circular(12),
             ),
             child: const Icon(Icons.tag_rounded, color: AppColors.primaryNavy, size: 22),
           ),
@@ -556,9 +584,9 @@ class _ReadScreenState extends State<ReadScreen> {
             style: ElevatedButton.styleFrom(
               backgroundColor: AppColors.primaryNavy,
               foregroundColor: Colors.white,
-              padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+              padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
               elevation: 0,
-              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
             ),
             onPressed: () {
               Navigator.push(
@@ -568,7 +596,7 @@ class _ReadScreenState extends State<ReadScreen> {
                 ),
               );
             },
-            child: const Text('Read Tag', style: TextStyle(fontSize: 11.5, fontWeight: FontWeight.w700)),
+            child: const Text('Read Tag', style: TextStyle(fontSize: 11.5, fontWeight: FontWeight.w800)),
           ),
         ],
       ),
@@ -585,15 +613,22 @@ class _ReadScreenState extends State<ReadScreen> {
       padding: const EdgeInsets.all(14),
       decoration: BoxDecoration(
         color: Colors.white,
-        borderRadius: BorderRadius.circular(14),
-        border: Border.all(color: AppColors.border),
+        borderRadius: BorderRadius.circular(18),
+        border: Border.all(color: AppColors.border, width: 0.9),
+        boxShadow: const [
+          BoxShadow(
+            color: Color(0x060F172A),
+            blurRadius: 8,
+            offset: Offset(0, 2),
+          ),
+        ],
       ),
       child: Row(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           CircleAvatar(
             radius: 22,
-            backgroundImage: NetworkImage(journalist.avatarUrl),
+            backgroundImage: getUserAvatarProvider(journalist.avatarUrl),
             backgroundColor: const Color(0xFFF1F5F9),
           ),
           const SizedBox(width: 12),
@@ -613,17 +648,18 @@ class _ReadScreenState extends State<ReadScreen> {
                     ),
                     const SizedBox(width: 6),
                     Container(
-                      padding: const EdgeInsets.symmetric(horizontal: 5, vertical: 1),
+                      padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 1.5),
                       decoration: BoxDecoration(
                         color: const Color(0xFFDCFCE7),
-                        borderRadius: BorderRadius.circular(4),
+                        borderRadius: BorderRadius.circular(6),
                       ),
                       child: Text(
                         '${journalist.trustScore}% TRUST',
                         style: const TextStyle(
                           color: Color(0xFF15803D),
                           fontSize: 9,
-                          fontWeight: FontWeight.w800,
+                          fontWeight: FontWeight.w900,
+                          letterSpacing: 0.5,
                         ),
                       ),
                     ),
@@ -652,7 +688,7 @@ class _ReadScreenState extends State<ReadScreen> {
                 color: journalist.isFollowed ? AppColors.border : AppColors.primaryNavy,
               ),
               padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
-              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
             ),
             onPressed: () {
               appState.toggleFollowJournalist(journalist.id);

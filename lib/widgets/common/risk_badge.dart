@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import '../../models/event_model.dart';
 
+/// 2026 Liquid Glass Risk Badge with micro-indicator dot and crisp tracked typography
 class RiskBadge extends StatelessWidget {
   final RiskLevel riskLevel;
 
@@ -11,30 +12,38 @@ class RiskBadge extends StatelessWidget {
     final color = Color(riskLevel.colorValue);
 
     return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+      padding: const EdgeInsets.symmetric(horizontal: 9, vertical: 4),
       decoration: BoxDecoration(
-        color: color.withValues(alpha: 0.15),
-        borderRadius: BorderRadius.circular(6),
-        border: Border.all(color: color.withValues(alpha: 0.5), width: 1),
+        color: color.withValues(alpha: 0.12),
+        borderRadius: BorderRadius.circular(16),
+        border: Border.all(color: color.withValues(alpha: 0.35), width: 0.9),
       ),
       child: Row(
         mainAxisSize: MainAxisSize.min,
         children: [
-          Icon(
-            riskLevel == RiskLevel.critical
-                ? Icons.warning_rounded
-                : Icons.shield_outlined,
-            color: color,
-            size: 11,
+          Container(
+            width: 6,
+            height: 6,
+            decoration: BoxDecoration(
+              color: color,
+              shape: BoxShape.circle,
+              boxShadow: [
+                BoxShadow(
+                  color: color.withValues(alpha: 0.4),
+                  blurRadius: 4,
+                  spreadRadius: 0.5,
+                ),
+              ],
+            ),
           ),
-          const SizedBox(width: 4),
+          const SizedBox(width: 5),
           Text(
-            riskLevel.label,
+            riskLevel.label.toUpperCase(),
             style: TextStyle(
               color: color,
-              fontSize: 10,
+              fontSize: 9.5,
               fontWeight: FontWeight.w800,
-              letterSpacing: 0.5,
+              letterSpacing: 0.7,
             ),
           ),
         ],

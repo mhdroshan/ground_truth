@@ -74,11 +74,13 @@ class PostCard extends StatelessWidget {
 
     return GlassCard(
       margin: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-      padding: const EdgeInsets.all(16),
+      padding: const EdgeInsets.all(18),
+      borderRadius: 24,
+      blur: 18,
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          // 1. Tag Name Pill Header (Clickable to open Event Detail)
+          // 1. Bento Header: Tag Name Pill + Category Chip
           if (showTagName && resolvedTagName != null) ...[
             Row(
               mainAxisAlignment: MainAxisAlignment.spaceBetween,
@@ -101,18 +103,18 @@ class PostCard extends StatelessWidget {
                       padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4.5),
                       decoration: BoxDecoration(
                         gradient: const LinearGradient(
-                          colors: [Color(0xFFEEF4FF), Color(0xFFE2EDFE)],
+                          colors: [Color(0xFFEFF6FF), Color(0xFFDBEAFE)],
                         ),
                         borderRadius: BorderRadius.circular(20),
                         border: Border.all(
-                          color: AppColors.primaryNavy.withValues(alpha: 0.18),
+                          color: AppColors.primaryNavy.withValues(alpha: 0.15),
                           width: 0.8,
                         ),
                         boxShadow: [
                           BoxShadow(
                             color: AppColors.primaryNavy.withValues(alpha: 0.04),
-                            blurRadius: 4,
-                            offset: const Offset(0, 1),
+                            blurRadius: 6,
+                            offset: const Offset(0, 2),
                           ),
                         ],
                       ),
@@ -137,7 +139,7 @@ class PostCard extends StatelessWidget {
                               resolvedTagName,
                               style: const TextStyle(
                                 color: AppColors.primaryNavy,
-                                fontSize: 12,
+                                fontSize: 11.5,
                                 fontWeight: FontWeight.w800,
                                 letterSpacing: -0.2,
                               ),
@@ -185,10 +187,10 @@ class PostCard extends StatelessWidget {
                 if (targetEvent != null) ...[
                   const SizedBox(width: 8),
                   Container(
-                    padding: const EdgeInsets.symmetric(horizontal: 7, vertical: 3),
+                    padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3.5),
                     decoration: BoxDecoration(
                       color: AppColors.surfaceElevated,
-                      borderRadius: BorderRadius.circular(6),
+                      borderRadius: BorderRadius.circular(12),
                       border: Border.all(color: AppColors.border),
                     ),
                     child: Text(
@@ -196,8 +198,8 @@ class PostCard extends StatelessWidget {
                       style: const TextStyle(
                         color: AppColors.textSecondary,
                         fontSize: 9,
-                        fontWeight: FontWeight.w700,
-                        letterSpacing: 0.3,
+                        fontWeight: FontWeight.w800,
+                        letterSpacing: 0.5,
                       ),
                     ),
                   ),
@@ -206,11 +208,12 @@ class PostCard extends StatelessWidget {
             ),
             const SizedBox(height: 12),
           ],
-          // Author & Trust Header
+
+          // 2. Bento Author & Credibility Row
           Row(
             crossAxisAlignment: CrossAxisAlignment.center,
             children: [
-              // Author Avatar with verified badge (Clickable to open profile)
+              // Author Avatar with verified sentinel
               InkWell(
                 onTap: () {
                   Navigator.push(
@@ -226,13 +229,13 @@ class PostCard extends StatelessWidget {
                     ),
                   );
                 },
-                borderRadius: BorderRadius.circular(20),
+                borderRadius: BorderRadius.circular(24),
                 child: Stack(
                   children: [
                     CircleAvatar(
                       radius: 20,
-                      backgroundColor: AppColors.surfaceElevated,
-                      backgroundImage: NetworkImage(post.authorAvatar),
+                      backgroundColor: const Color(0xFFE2E8F0),
+                      backgroundImage: getUserAvatarProvider(post.authorAvatar),
                       onBackgroundImageError: (err, stack) {},
                     ),
                     Positioned(
@@ -241,14 +244,15 @@ class PostCard extends StatelessWidget {
                       child: Container(
                         width: 14,
                         height: 14,
-                        decoration: const BoxDecoration(
+                        decoration: BoxDecoration(
                           color: AppColors.verifiedGreen,
                           shape: BoxShape.circle,
+                          border: Border.all(color: Colors.white, width: 1.5),
                         ),
                         child: const Icon(
                           Icons.check,
-                          size: 9,
-                          color: Colors.black,
+                          size: 8,
+                          color: Colors.white,
                         ),
                       ),
                     ),
@@ -257,7 +261,7 @@ class PostCard extends StatelessWidget {
               ),
               const SizedBox(width: 10),
 
-              // Name & Location (Clickable to open profile)
+              // Name & Location
               Expanded(
                 child: InkWell(
                   onTap: () {
@@ -274,7 +278,7 @@ class PostCard extends StatelessWidget {
                       ),
                     );
                   },
-                  borderRadius: BorderRadius.circular(6),
+                  borderRadius: BorderRadius.circular(8),
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
@@ -286,7 +290,7 @@ class PostCard extends StatelessWidget {
                               style: const TextStyle(
                                 color: AppColors.textPrimary,
                                 fontSize: 14,
-                                fontWeight: FontWeight.w700,
+                                fontWeight: FontWeight.w800,
                               ),
                               maxLines: 1,
                               overflow: TextOverflow.ellipsis,
@@ -295,17 +299,22 @@ class PostCard extends StatelessWidget {
                           if (post.authorIsVerifiedJournalist) ...[
                             const SizedBox(width: 6),
                             Container(
-                              padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 1.5),
+                              padding: const EdgeInsets.symmetric(horizontal: 5, vertical: 2),
                               decoration: BoxDecoration(
-                                color: AppColors.accentBlue.withValues(alpha: 0.2),
-                                borderRadius: BorderRadius.circular(4),
+                                color: AppColors.primaryNavy.withValues(alpha: 0.1),
+                                borderRadius: BorderRadius.circular(6),
+                                border: Border.all(
+                                  color: AppColors.primaryNavy.withValues(alpha: 0.2),
+                                  width: 0.8,
+                                ),
                               ),
                               child: const Text(
                                 'PRESS',
                                 style: TextStyle(
-                                  color: AppColors.accentBlue,
-                                  fontSize: 9,
-                                  fontWeight: FontWeight.w800,
+                                  color: AppColors.primaryNavy,
+                                  fontSize: 8.5,
+                                  fontWeight: FontWeight.w900,
+                                  letterSpacing: 0.5,
                                 ),
                               ),
                             ),
@@ -319,19 +328,20 @@ class PostCard extends StatelessWidget {
                             timeStr,
                             style: const TextStyle(
                               color: AppColors.textMuted,
-                              fontSize: 11.5,
+                              fontSize: 11,
+                              fontWeight: FontWeight.w500,
                             ),
                           ),
                           const Text(' • ', style: TextStyle(color: AppColors.textMuted)),
-                          const Icon(Icons.location_on, size: 11, color: AppColors.radarCyan),
+                          const Icon(Icons.location_on_rounded, size: 11, color: AppColors.radarCyan),
                           const SizedBox(width: 2),
                           Flexible(
                             child: Text(
                               locationText,
                               style: const TextStyle(
                                 color: AppColors.radarCyan,
-                                fontSize: 11.5,
-                                fontWeight: FontWeight.w600,
+                                fontSize: 11,
+                                fontWeight: FontWeight.w700,
                               ),
                               maxLines: 1,
                               overflow: TextOverflow.ellipsis,
@@ -344,7 +354,7 @@ class PostCard extends StatelessWidget {
                 ),
               ),
 
-              // Quick Follow / Following Button (when post not by current user)
+              // Quick Follow / Following Button
               if (post.authorId != appState.currentUser.id) ...[
                 Builder(
                   builder: (context) {
@@ -375,7 +385,7 @@ class PostCard extends StatelessWidget {
                       borderRadius: BorderRadius.circular(16),
                       child: Container(
                         margin: const EdgeInsets.only(right: 6),
-                        padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3.5),
+                        padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
                         decoration: BoxDecoration(
                           color: isFollowed
                               ? const Color(0xFFDCFCE7)
@@ -385,7 +395,7 @@ class PostCard extends StatelessWidget {
                             color: isFollowed
                                 ? const Color(0xFF86EFAC)
                                 : AppColors.primaryNavy.withValues(alpha: 0.2),
-                            width: 1,
+                            width: 0.9,
                           ),
                         ),
                         child: Row(
@@ -401,8 +411,8 @@ class PostCard extends StatelessWidget {
                               isFollowed ? 'Following' : 'Follow',
                               style: TextStyle(
                                 color: isFollowed ? const Color(0xFF15803D) : AppColors.primaryNavy,
-                                fontSize: 10.5,
-                                fontWeight: FontWeight.w700,
+                                fontSize: 10,
+                                fontWeight: FontWeight.w800,
                               ),
                             ),
                           ],
@@ -413,7 +423,7 @@ class PostCard extends StatelessWidget {
                 ),
               ],
 
-              // Trust Pill
+              // 2026 Liquid Trust Pill
               TrustBadge(
                 confidenceScore: post.verification.confidenceScore,
               ),
@@ -421,18 +431,20 @@ class PostCard extends StatelessWidget {
           ),
           const SizedBox(height: 12),
 
-          // Post Text Content
+          // 3. Post Text Content (Exaggerated Minimalism)
           Text(
             post.content,
             style: const TextStyle(
               color: AppColors.textPrimary,
               fontSize: 14.5,
-              height: 1.45,
+              height: 1.48,
+              letterSpacing: -0.1,
+              fontWeight: FontWeight.w400,
             ),
           ),
           const SizedBox(height: 12),
 
-          // Post Media Attachments based on type
+          // 4. Media Attachments based on type
           if (post.type == PostType.photo && post.mediaUrl != null)
             _buildPhotoAttachment(context),
 
@@ -456,23 +468,32 @@ class PostCard extends StatelessWidget {
 
           const SizedBox(height: 14),
 
-          // Bottom Action Bar: Upvote, Downvote, Comments
+          // 5. Asymmetric Bento Action Bar
           Row(
             children: [
-              // Voting pill
+              // Liquid Voting Capsule
               Container(
                 decoration: BoxDecoration(
                   color: canVote
-                      ? AppColors.surfaceElevated
+                      ? Colors.white
                       : const Color(0xFFF1F5F9).withValues(alpha: 0.7),
                   borderRadius: BorderRadius.circular(24),
                   border: Border.all(
                     color: canVote ? AppColors.border : const Color(0xFFE2E8F0),
+                    width: 1,
                   ),
+                  boxShadow: [
+                    if (canVote)
+                      BoxShadow(
+                        color: Colors.black.withValues(alpha: 0.02),
+                        blurRadius: 8,
+                        offset: const Offset(0, 2),
+                      ),
+                  ],
                 ),
                 child: Row(
                   children: [
-                    // Upvote
+                    // Upvote / Verify
                     Tooltip(
                       message: effectiveIsOwn
                           ? 'Voting disabled for your own post'
@@ -483,7 +504,7 @@ class PostCard extends StatelessWidget {
                         onTap: canVote ? () => onVote(1) : null,
                         borderRadius: const BorderRadius.horizontal(left: Radius.circular(24)),
                         child: Padding(
-                          padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+                          padding: const EdgeInsets.symmetric(horizontal: 11, vertical: 7),
                           child: Row(
                             children: [
                               Icon(
@@ -497,7 +518,7 @@ class PostCard extends StatelessWidget {
                                         ? AppColors.upvote
                                         : AppColors.textSecondary),
                               ),
-                              const SizedBox(width: 4),
+                              const SizedBox(width: 5),
                               Text(
                                 '${post.score}',
                                 style: TextStyle(
@@ -509,7 +530,7 @@ class PostCard extends StatelessWidget {
                                               ? AppColors.downvote
                                               : AppColors.textPrimary)),
                                   fontSize: 12.5,
-                                  fontWeight: FontWeight.w700,
+                                  fontWeight: FontWeight.w800,
                                 ),
                               ),
                             ],
@@ -522,7 +543,7 @@ class PostCard extends StatelessWidget {
                       height: 16,
                       color: canVote ? AppColors.border : const Color(0xFFE2E8F0),
                     ),
-                    // Downvote
+                    // Downvote / Dispute
                     Tooltip(
                       message: effectiveIsOwn
                           ? 'Voting disabled for your own post'
@@ -533,7 +554,7 @@ class PostCard extends StatelessWidget {
                         onTap: canVote ? () => onVote(-1) : null,
                         borderRadius: const BorderRadius.horizontal(right: Radius.circular(24)),
                         child: Padding(
-                          padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+                          padding: const EdgeInsets.symmetric(horizontal: 11, vertical: 7),
                           child: Icon(
                             post.userVote == -1
                                 ? Icons.arrow_downward_rounded
@@ -552,38 +573,34 @@ class PostCard extends StatelessWidget {
                 ),
               ),
 
-              // Outside Geofence indicator badge OR Own Post badge if disabled
-              if (!canVote)
+              // Outside Geofence indicator badge if disabled
+              if (!canVote && !effectiveIsOwn)
                 Padding(
                   padding: const EdgeInsets.only(left: 6),
                   child: Tooltip(
-                    message: effectiveIsOwn
-                        ? 'Authors cannot verify or dispute their own reports'
-                        : 'Physical presence inside geofence required to vote',
+                    message: 'Physical presence inside geofence required to vote',
                     child: Container(
-                      padding: const EdgeInsets.symmetric(horizontal: 7, vertical: 4),
+                      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4.5),
                       decoration: BoxDecoration(
-                        color: effectiveIsOwn ? const Color(0xFFEFF6FF) : const Color(0xFFF1F5F9),
-                        borderRadius: BorderRadius.circular(12),
-                        border: Border.all(
-                          color: effectiveIsOwn ? const Color(0xFFBFDBFE) : const Color(0xFFE2E8F0),
-                        ),
+                        color: const Color(0xFFF1F5F9),
+                        borderRadius: BorderRadius.circular(16),
+                        border: Border.all(color: const Color(0xFFE2E8F0)),
                       ),
-                      child: Row(
+                      child: const Row(
                         mainAxisSize: MainAxisSize.min,
                         children: [
                           Icon(
-                            effectiveIsOwn ? Icons.person_rounded : Icons.lock_outline_rounded,
+                            Icons.lock_outline_rounded,
                             size: 11,
-                            color: effectiveIsOwn ? const Color(0xFF1D4ED8) : AppColors.textMuted,
+                            color: AppColors.textMuted,
                           ),
-                          const SizedBox(width: 3),
+                          SizedBox(width: 4),
                           Text(
-                            effectiveIsOwn ? 'Your Post' : 'Outside Radius',
+                            'Outside Radius',
                             style: TextStyle(
-                              fontSize: 10,
-                              color: effectiveIsOwn ? const Color(0xFF1D4ED8) : AppColors.textMuted,
-                              fontWeight: FontWeight.w700,
+                              fontSize: 9.5,
+                              color: AppColors.textMuted,
+                              fontWeight: FontWeight.w800,
                             ),
                           ),
                         ],
@@ -591,30 +608,40 @@ class PostCard extends StatelessWidget {
                     ),
                   ),
                 ),
-              const SizedBox(width: 10),
+              const SizedBox(width: 8),
 
-              // Comments Button
+              // Comments Pill
               InkWell(
                 onTap: onOpenComments,
                 borderRadius: BorderRadius.circular(20),
                 child: Container(
                   padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 7),
                   decoration: BoxDecoration(
-                    color: AppColors.surfaceElevated,
+                    color: Colors.white,
                     borderRadius: BorderRadius.circular(20),
                     border: Border.all(color: AppColors.border),
+                    boxShadow: [
+                      BoxShadow(
+                        color: Colors.black.withValues(alpha: 0.02),
+                        blurRadius: 8,
+                        offset: const Offset(0, 2),
+                      ),
+                    ],
                   ),
                   child: Row(
                     children: [
-                      const Icon(Icons.chat_bubble_outline_rounded,
-                          size: 14, color: AppColors.textSecondary),
+                      const Icon(
+                        Icons.chat_bubble_outline_rounded,
+                        size: 14,
+                        color: AppColors.textSecondary,
+                      ),
                       const SizedBox(width: 5),
                       Text(
                         '${post.commentsCount}',
                         style: const TextStyle(
                           color: AppColors.textSecondary,
                           fontSize: 12,
-                          fontWeight: FontWeight.w600,
+                          fontWeight: FontWeight.w700,
                         ),
                       ),
                     ],
@@ -630,67 +657,76 @@ class PostCard extends StatelessWidget {
 
   Widget _buildPhotoAttachment(BuildContext context) {
     return ClipRRect(
-      borderRadius: BorderRadius.circular(12),
-      child: SafeImageWidget(
-        urlOrData: post.mediaUrl!,
-        height: 210,
-        width: double.infinity,
-        fit: BoxFit.cover,
+      borderRadius: BorderRadius.circular(16),
+      child: Container(
+        decoration: BoxDecoration(
+          border: Border.all(color: AppColors.border, width: 0.8),
+          borderRadius: BorderRadius.circular(16),
+        ),
+        child: SafeImageWidget(
+          urlOrData: post.mediaUrl!,
+          height: 220,
+          width: double.infinity,
+          fit: BoxFit.cover,
+        ),
       ),
     );
   }
 
   Widget _buildVideoAttachment(BuildContext context) {
     return ClipRRect(
-      borderRadius: BorderRadius.circular(12),
+      borderRadius: BorderRadius.circular(16),
       child: Stack(
         alignment: Alignment.center,
         children: [
           SafeImageWidget(
             urlOrData: post.videoThumbnailUrl!,
-            height: 210,
+            height: 220,
             width: double.infinity,
             fit: BoxFit.cover,
           ),
           Container(
-            height: 210,
+            height: 220,
             width: double.infinity,
             color: Colors.black.withValues(alpha: 0.35),
           ),
           Container(
-            width: 50,
-            height: 50,
+            width: 52,
+            height: 52,
             decoration: BoxDecoration(
               color: AppColors.verifiedGreen,
               shape: BoxShape.circle,
               boxShadow: [
                 BoxShadow(
                   color: AppColors.verifiedGreen.withValues(alpha: 0.4),
-                  blurRadius: 12,
+                  blurRadius: 14,
+                  offset: const Offset(0, 4),
                 ),
               ],
             ),
-            child: const Icon(Icons.play_arrow_rounded, color: Colors.black, size: 30),
+            child: const Icon(Icons.play_arrow_rounded, color: Colors.white, size: 32),
           ),
           Positioned(
-            top: 8,
-            left: 8,
+            top: 10,
+            left: 10,
             child: Container(
-              padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+              padding: const EdgeInsets.symmetric(horizontal: 9, vertical: 4.5),
               decoration: BoxDecoration(
-                color: Colors.black.withValues(alpha: 0.7),
-                borderRadius: BorderRadius.circular(6),
+                color: Colors.black.withValues(alpha: 0.75),
+                borderRadius: BorderRadius.circular(20),
+                border: Border.all(color: Colors.white.withValues(alpha: 0.2)),
               ),
               child: const Row(
                 children: [
-                  Icon(Icons.videocam, size: 12, color: AppColors.verifiedGreen),
-                  SizedBox(width: 4),
+                  Icon(Icons.videocam_rounded, size: 12, color: AppColors.verifiedGreen),
+                  SizedBox(width: 5),
                   Text(
                     'GROUND VIDEO • DEVICE ATTESTED',
                     style: TextStyle(
-                      color: AppColors.verifiedGreen,
-                      fontSize: 9.5,
-                      fontWeight: FontWeight.w800,
+                      color: Colors.white,
+                      fontSize: 9,
+                      fontWeight: FontWeight.w900,
+                      letterSpacing: 0.6,
                     ),
                   ),
                 ],

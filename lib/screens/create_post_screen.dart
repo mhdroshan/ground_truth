@@ -1,4 +1,5 @@
 import 'dart:async';
+import 'dart:ui';
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import '../models/event_model.dart';
@@ -10,6 +11,7 @@ import '../services/api_service.dart';
 import '../theme/app_colors.dart';
 import '../utils/geofence_math.dart';
 import '../widgets/common/safe_image.dart';
+import '../widgets/common/glass_card.dart';
 import 'login_screen.dart';
 
 class CreatePostScreen extends StatefulWidget {
@@ -69,62 +71,73 @@ class _CreatePostScreenState extends State<CreatePostScreen> {
   Future<void> _handlePhotoTap() async {
     final bool? useCamera = await showModalBottomSheet<bool>(
       context: context,
-      backgroundColor: Colors.white,
-      shape: const RoundedRectangleBorder(
-        borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
-      ),
-      builder: (ctx) => SafeArea(
-        child: Padding(
-          padding: const EdgeInsets.symmetric(vertical: 20, horizontal: 16),
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              Container(
-                width: 36,
-                height: 4,
-                decoration: BoxDecoration(
-                  color: const Color(0xFFE2E8F0),
-                  borderRadius: BorderRadius.circular(2),
-                ),
+      backgroundColor: Colors.transparent,
+      builder: (ctx) => ClipRRect(
+        borderRadius: const BorderRadius.vertical(top: Radius.circular(28)),
+        child: BackdropFilter(
+          filter: ImageFilter.blur(sigmaX: 24, sigmaY: 24),
+          child: Container(
+            padding: const EdgeInsets.fromLTRB(20, 14, 20, 32),
+            decoration: BoxDecoration(
+              color: Colors.white.withValues(alpha: 0.95),
+              borderRadius: const BorderRadius.vertical(top: Radius.circular(28)),
+              border: Border(
+                top: BorderSide(color: Colors.white.withValues(alpha: 0.8), width: 1.5),
               ),
-              const SizedBox(height: 16),
-              const Text(
-                'Attach Eyewitness Photo',
-                style: TextStyle(
-                  color: AppColors.primaryNavy,
-                  fontSize: 16,
-                  fontWeight: FontWeight.w800,
-                ),
-              ),
-              const SizedBox(height: 16),
-              ListTile(
-                leading: Container(
-                  padding: const EdgeInsets.all(8),
+            ),
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Container(
+                  width: 44,
+                  height: 4,
                   decoration: BoxDecoration(
-                    color: const Color(0xFFEFF6FF),
-                    borderRadius: BorderRadius.circular(10),
+                    color: const Color(0xFFCBD5E1),
+                    borderRadius: BorderRadius.circular(2),
                   ),
-                  child: const Icon(Icons.camera_alt_rounded, color: Color(0xFF2563EB)),
                 ),
-                title: const Text('Take Live Photo', style: TextStyle(fontWeight: FontWeight.w700)),
-                subtitle: const Text('Capture live on-site eyewitness photo with camera', style: TextStyle(fontSize: 12)),
-                onTap: () => Navigator.pop(ctx, true),
-              ),
-              const Divider(height: 1),
-              ListTile(
-                leading: Container(
-                  padding: const EdgeInsets.all(8),
-                  decoration: BoxDecoration(
-                    color: const Color(0xFFF1F5F9),
-                    borderRadius: BorderRadius.circular(10),
+                const SizedBox(height: 16),
+                const Text(
+                  'Attach Eyewitness Photo',
+                  style: TextStyle(
+                    color: AppColors.textPrimary,
+                    fontSize: 16,
+                    fontWeight: FontWeight.w900,
+                    letterSpacing: -0.3,
                   ),
-                  child: const Icon(Icons.photo_library_rounded, color: AppColors.primaryNavy),
                 ),
-                title: const Text('Choose from Photo Gallery', style: TextStyle(fontWeight: FontWeight.w700)),
-                subtitle: const Text('Select a photo from your photo library', style: TextStyle(fontSize: 12)),
-                onTap: () => Navigator.pop(ctx, false),
-              ),
-            ],
+                const SizedBox(height: 16),
+                ListTile(
+                  leading: Container(
+                    padding: const EdgeInsets.all(9),
+                    decoration: BoxDecoration(
+                      color: const Color(0xFFEFF6FF),
+                      borderRadius: BorderRadius.circular(12),
+                    ),
+                    child: const Icon(Icons.camera_alt_rounded, color: Color(0xFF2563EB)),
+                  ),
+                  title: const Text('Take Live Photo', style: TextStyle(fontWeight: FontWeight.w800, fontSize: 14)),
+                  subtitle: const Text('Capture live on-site eyewitness photo with camera', style: TextStyle(fontSize: 12)),
+                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
+                  onTap: () => Navigator.pop(ctx, true),
+                ),
+                const SizedBox(height: 6),
+                ListTile(
+                  leading: Container(
+                    padding: const EdgeInsets.all(9),
+                    decoration: BoxDecoration(
+                      color: const Color(0xFFF1F5F9),
+                      borderRadius: BorderRadius.circular(12),
+                    ),
+                    child: const Icon(Icons.photo_library_rounded, color: AppColors.primaryNavy),
+                  ),
+                  title: const Text('Choose from Photo Gallery', style: TextStyle(fontWeight: FontWeight.w800, fontSize: 14)),
+                  subtitle: const Text('Select a photo from your device storage', style: TextStyle(fontSize: 12)),
+                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
+                  onTap: () => Navigator.pop(ctx, false),
+                ),
+              ],
+            ),
           ),
         ),
       ),
@@ -166,62 +179,73 @@ class _CreatePostScreenState extends State<CreatePostScreen> {
   Future<void> _handleVideoTap() async {
     final bool? useCamera = await showModalBottomSheet<bool>(
       context: context,
-      backgroundColor: Colors.white,
-      shape: const RoundedRectangleBorder(
-        borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
-      ),
-      builder: (ctx) => SafeArea(
-        child: Padding(
-          padding: const EdgeInsets.symmetric(vertical: 20, horizontal: 16),
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              Container(
-                width: 36,
-                height: 4,
-                decoration: BoxDecoration(
-                  color: const Color(0xFFE2E8F0),
-                  borderRadius: BorderRadius.circular(2),
-                ),
+      backgroundColor: Colors.transparent,
+      builder: (ctx) => ClipRRect(
+        borderRadius: const BorderRadius.vertical(top: Radius.circular(28)),
+        child: BackdropFilter(
+          filter: ImageFilter.blur(sigmaX: 24, sigmaY: 24),
+          child: Container(
+            padding: const EdgeInsets.fromLTRB(20, 14, 20, 32),
+            decoration: BoxDecoration(
+              color: Colors.white.withValues(alpha: 0.95),
+              borderRadius: const BorderRadius.vertical(top: Radius.circular(28)),
+              border: Border(
+                top: BorderSide(color: Colors.white.withValues(alpha: 0.8), width: 1.5),
               ),
-              const SizedBox(height: 16),
-              const Text(
-                'Attach Eyewitness Video',
-                style: TextStyle(
-                  color: AppColors.primaryNavy,
-                  fontSize: 16,
-                  fontWeight: FontWeight.w800,
-                ),
-              ),
-              const SizedBox(height: 16),
-              ListTile(
-                leading: Container(
-                  padding: const EdgeInsets.all(8),
+            ),
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Container(
+                  width: 44,
+                  height: 4,
                   decoration: BoxDecoration(
-                    color: const Color(0xFFEFF6FF),
-                    borderRadius: BorderRadius.circular(10),
+                    color: const Color(0xFFCBD5E1),
+                    borderRadius: BorderRadius.circular(2),
                   ),
-                  child: const Icon(Icons.videocam_rounded, color: Color(0xFF2563EB)),
                 ),
-                title: const Text('Record Live Video', style: TextStyle(fontWeight: FontWeight.w700)),
-                subtitle: const Text('Capture live on-site eyewitness footage with camera', style: TextStyle(fontSize: 12)),
-                onTap: () => Navigator.pop(ctx, true),
-              ),
-              const Divider(height: 1),
-              ListTile(
-                leading: Container(
-                  padding: const EdgeInsets.all(8),
-                  decoration: BoxDecoration(
-                    color: const Color(0xFFF1F5F9),
-                    borderRadius: BorderRadius.circular(10),
+                const SizedBox(height: 16),
+                const Text(
+                  'Attach Eyewitness Video',
+                  style: TextStyle(
+                    color: AppColors.textPrimary,
+                    fontSize: 16,
+                    fontWeight: FontWeight.w900,
+                    letterSpacing: -0.3,
                   ),
-                  child: const Icon(Icons.video_library_rounded, color: AppColors.primaryNavy),
                 ),
-                title: const Text('Choose Video from Gallery', style: TextStyle(fontWeight: FontWeight.w700)),
-                subtitle: const Text('Select existing recorded footage from your device', style: TextStyle(fontSize: 12)),
-                onTap: () => Navigator.pop(ctx, false),
-              ),
-            ],
+                const SizedBox(height: 16),
+                ListTile(
+                  leading: Container(
+                    padding: const EdgeInsets.all(9),
+                    decoration: BoxDecoration(
+                      color: const Color(0xFFEFF6FF),
+                      borderRadius: BorderRadius.circular(12),
+                    ),
+                    child: const Icon(Icons.videocam_rounded, color: Color(0xFF2563EB)),
+                  ),
+                  title: const Text('Record Live Video', style: TextStyle(fontWeight: FontWeight.w800, fontSize: 14)),
+                  subtitle: const Text('Capture live on-site eyewitness footage with camera', style: TextStyle(fontSize: 12)),
+                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
+                  onTap: () => Navigator.pop(ctx, true),
+                ),
+                const SizedBox(height: 6),
+                ListTile(
+                  leading: Container(
+                    padding: const EdgeInsets.all(9),
+                    decoration: BoxDecoration(
+                      color: const Color(0xFFF1F5F9),
+                      borderRadius: BorderRadius.circular(12),
+                    ),
+                    child: const Icon(Icons.video_library_rounded, color: AppColors.primaryNavy),
+                  ),
+                  title: const Text('Choose Video from Gallery', style: TextStyle(fontWeight: FontWeight.w800, fontSize: 14)),
+                  subtitle: const Text('Select existing recorded footage from your device', style: TextStyle(fontSize: 12)),
+                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
+                  onTap: () => Navigator.pop(ctx, false),
+                ),
+              ],
+            ),
           ),
         ),
       ),
@@ -437,20 +461,21 @@ class _CreatePostScreenState extends State<CreatePostScreen> {
 
     if (!isInside) {
       return Scaffold(
-        backgroundColor: const Color(0xFFF8FAFC),
+        backgroundColor: AppColors.background,
         appBar: AppBar(
           backgroundColor: Colors.white,
           elevation: 0,
           leading: IconButton(
-            icon: const Icon(Icons.arrow_back, color: AppColors.primaryNavy),
+            icon: const Icon(Icons.arrow_back_rounded, color: AppColors.primaryNavy),
             onPressed: () => Navigator.pop(context),
           ),
           title: const Text(
             'Posting Restricted',
             style: TextStyle(
-              color: AppColors.primaryNavy,
-              fontSize: 18,
-              fontWeight: FontWeight.w800,
+              color: AppColors.textPrimary,
+              fontSize: 17,
+              fontWeight: FontWeight.w900,
+              letterSpacing: -0.4,
             ),
           ),
         ),
@@ -461,21 +486,29 @@ class _CreatePostScreenState extends State<CreatePostScreen> {
               mainAxisAlignment: MainAxisAlignment.center,
               children: [
                 Container(
-                  width: 76,
-                  height: 76,
-                  decoration: const BoxDecoration(
-                    color: Color(0xFFFEE2E2),
+                  width: 80,
+                  height: 80,
+                  decoration: BoxDecoration(
+                    color: const Color(0xFFFEE2E2),
                     shape: BoxShape.circle,
+                    boxShadow: [
+                      BoxShadow(
+                        color: AppColors.alertRed.withValues(alpha: 0.18),
+                        blurRadius: 20,
+                        offset: const Offset(0, 6),
+                      ),
+                    ],
                   ),
-                  child: const Icon(Icons.lock_person_rounded, size: 40, color: AppColors.alertRed),
+                  child: const Icon(Icons.lock_person_rounded, size: 38, color: AppColors.alertRed),
                 ),
-                const SizedBox(height: 20),
+                const SizedBox(height: 22),
                 const Text(
                   'Physical Geofence Gate',
                   style: TextStyle(
                     color: AppColors.textPrimary,
                     fontSize: 20,
                     fontWeight: FontWeight.w900,
+                    letterSpacing: -0.5,
                   ),
                 ),
                 const SizedBox(height: 8),
@@ -488,12 +521,12 @@ class _CreatePostScreenState extends State<CreatePostScreen> {
                     height: 1.45,
                   ),
                 ),
-                const SizedBox(height: 18),
+                const SizedBox(height: 20),
                 Container(
                   padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
                   decoration: BoxDecoration(
                     color: Colors.white,
-                    borderRadius: BorderRadius.circular(12),
+                    borderRadius: BorderRadius.circular(16),
                     border: Border.all(color: const Color(0xFFFECACA)),
                   ),
                   child: Row(
@@ -506,13 +539,13 @@ class _CreatePostScreenState extends State<CreatePostScreen> {
                         style: const TextStyle(
                           color: AppColors.alertRed,
                           fontSize: 12,
-                          fontWeight: FontWeight.w700,
+                          fontWeight: FontWeight.w800,
                         ),
                       ),
                     ],
                   ),
                 ),
-                const SizedBox(height: 24),
+                const SizedBox(height: 26),
                 Wrap(
                   spacing: 10,
                   runSpacing: 10,
@@ -522,8 +555,8 @@ class _CreatePostScreenState extends State<CreatePostScreen> {
                       style: OutlinedButton.styleFrom(
                         foregroundColor: AppColors.primaryNavy,
                         side: const BorderSide(color: AppColors.primaryNavy),
-                        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
-                        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                        padding: const EdgeInsets.symmetric(horizontal: 18, vertical: 12),
+                        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
                       ),
                       onPressed: () => locationService.refreshPhysicalLocation(),
                       icon: locationService.isLocating
@@ -533,18 +566,21 @@ class _CreatePostScreenState extends State<CreatePostScreen> {
                               child: CircularProgressIndicator(strokeWidth: 2, color: AppColors.primaryNavy),
                             )
                           : const Icon(Icons.refresh_rounded, size: 16),
-                      label: Text(locationService.isLocating ? 'Acquiring GPS...' : 'Refresh GPS Location'),
+                      label: Text(
+                        locationService.isLocating ? 'Acquiring GPS...' : 'Refresh GPS Location',
+                        style: const TextStyle(fontWeight: FontWeight.w800, fontSize: 13),
+                      ),
                     ),
                     ElevatedButton.icon(
                       style: ElevatedButton.styleFrom(
                         backgroundColor: AppColors.primaryNavy,
                         foregroundColor: Colors.white,
-                        padding: const EdgeInsets.symmetric(horizontal: 18, vertical: 12),
-                        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                        padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 12),
+                        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
                       ),
                       onPressed: () => Navigator.pop(context),
-                      icon: const Icon(Icons.arrow_back, size: 16),
-                      label: const Text('Back to Tags Feed'),
+                      icon: const Icon(Icons.arrow_back_rounded, size: 16),
+                      label: const Text('Back to Tags Feed', style: TextStyle(fontWeight: FontWeight.w800, fontSize: 13)),
                     ),
                   ],
                 ),
@@ -556,34 +592,36 @@ class _CreatePostScreenState extends State<CreatePostScreen> {
     }
 
     return Scaffold(
-      backgroundColor: Colors.white,
+      backgroundColor: AppColors.background,
       appBar: AppBar(
-        backgroundColor: Colors.white,
+        backgroundColor: Colors.white.withValues(alpha: 0.9),
+        surfaceTintColor: Colors.transparent,
         elevation: 0,
         leading: IconButton(
-          icon: const Icon(Icons.close, color: AppColors.textPrimary, size: 22),
+          icon: const Icon(Icons.close_rounded, color: AppColors.textPrimary, size: 22),
           onPressed: () => Navigator.pop(context),
         ),
         title: const Text(
           'Report Draft',
           style: TextStyle(
-            color: AppColors.primaryNavy,
+            color: AppColors.textPrimary,
             fontSize: 17,
-            fontWeight: FontWeight.w800,
+            fontWeight: FontWeight.w900,
+            letterSpacing: -0.4,
           ),
         ),
         centerTitle: true,
         actions: [
           Padding(
-            padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
+            padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
             child: ElevatedButton(
               style: ElevatedButton.styleFrom(
-                backgroundColor: const Color(0xFFC7D7F4),
-                foregroundColor: AppColors.primaryNavy,
+                backgroundColor: const Color(0xFF10B981),
+                foregroundColor: Colors.white,
                 elevation: 0,
-                padding: const EdgeInsets.symmetric(horizontal: 16),
+                padding: const EdgeInsets.symmetric(horizontal: 18),
                 shape: RoundedRectangleBorder(
-                  borderRadius: BorderRadius.circular(20),
+                  borderRadius: BorderRadius.circular(16),
                 ),
               ),
               onPressed: _isPublishing ? null : _publish,
@@ -591,11 +629,11 @@ class _CreatePostScreenState extends State<CreatePostScreen> {
                   ? const SizedBox(
                       width: 16,
                       height: 16,
-                      child: CircularProgressIndicator(strokeWidth: 2, color: AppColors.primaryNavy),
+                      child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white),
                     )
                   : const Text(
                       'Publish',
-                      style: TextStyle(fontSize: 13, fontWeight: FontWeight.w700),
+                      style: TextStyle(fontSize: 13, fontWeight: FontWeight.w900),
                     ),
             ),
           ),
@@ -609,24 +647,20 @@ class _CreatePostScreenState extends State<CreatePostScreen> {
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  // Posting Destination Card
-                  Container(
+                  // 2026 Bento Posting Destination Card
+                  BentoCard(
                     padding: const EdgeInsets.all(14),
-                    decoration: BoxDecoration(
-                      color: const Color(0xFFF1F5F9),
-                      borderRadius: BorderRadius.circular(14),
-                      border: Border.all(color: AppColors.border),
-                    ),
+                    borderRadius: 20,
                     child: Row(
                       children: [
                         Container(
-                          width: 40,
-                          height: 40,
+                          width: 44,
+                          height: 44,
                           decoration: BoxDecoration(
-                            color: const Color(0xFFD0E1FD),
-                            borderRadius: BorderRadius.circular(10),
+                            color: AppColors.primaryNavy.withValues(alpha: 0.08),
+                            borderRadius: BorderRadius.circular(14),
                           ),
-                          child: const Icon(Icons.location_on, color: AppColors.primaryNavy, size: 22),
+                          child: const Icon(Icons.location_on_rounded, color: AppColors.primaryNavy, size: 22),
                         ),
                         const SizedBox(width: 12),
                         Expanded(
@@ -638,27 +672,29 @@ class _CreatePostScreenState extends State<CreatePostScreen> {
                                   const Text(
                                     'POSTING TO: ',
                                     style: TextStyle(
-                                      color: AppColors.textSecondary,
-                                      fontSize: 11,
-                                      fontWeight: FontWeight.w700,
+                                      color: AppColors.textMuted,
+                                      fontSize: 9.5,
+                                      fontWeight: FontWeight.w900,
+                                      letterSpacing: 0.8,
                                     ),
                                   ),
+                                  const SizedBox(width: 6),
                                   Container(
-                                    padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                                    padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 1.5),
                                     decoration: BoxDecoration(
-                                      color: const Color(0xFFE6F4EA),
-                                      borderRadius: BorderRadius.circular(4),
+                                      color: const Color(0xFFDCFCE7),
+                                      borderRadius: BorderRadius.circular(6),
                                     ),
                                     child: const Row(
                                       children: [
-                                        Icon(Icons.check, size: 10, color: Color(0xFF0D652D)),
+                                        Icon(Icons.check_circle_rounded, size: 9, color: Color(0xFF15803D)),
                                         SizedBox(width: 3),
                                         Text(
-                                          'VERIFIED',
+                                          'ON-SITE',
                                           style: TextStyle(
-                                            color: Color(0xFF0D652D),
-                                            fontSize: 9,
-                                            fontWeight: FontWeight.w800,
+                                            color: Color(0xFF15803D),
+                                            fontSize: 8.5,
+                                            fontWeight: FontWeight.w900,
                                           ),
                                         ),
                                       ],
@@ -670,9 +706,10 @@ class _CreatePostScreenState extends State<CreatePostScreen> {
                               Text(
                                 widget.event.tagName,
                                 style: const TextStyle(
-                                  color: AppColors.primaryNavy,
+                                  color: AppColors.textPrimary,
                                   fontSize: 16,
                                   fontWeight: FontWeight.w900,
+                                  letterSpacing: -0.4,
                                 ),
                               ),
                               Text(
@@ -689,25 +726,33 @@ class _CreatePostScreenState extends State<CreatePostScreen> {
                       ],
                     ),
                   ),
-                  const SizedBox(height: 18),
-
-                  // Text input
-                  TextField(
-                    controller: _contentController,
-                    maxLines: 5,
-                    style: const TextStyle(color: AppColors.textPrimary, fontSize: 14.5),
-                    decoration: InputDecoration(
-                      hintText: _selectedType == PostType.poll
-                          ? "What is your eyewitness poll question? (e.g. Is the roadblock cleared?)..."
-                          : "What's happening on the ground? Provide objective details...",
-                      hintStyle: const TextStyle(color: AppColors.textMuted, fontSize: 14),
-                      border: InputBorder.none,
-                      contentPadding: EdgeInsets.zero,
-                    ),
-                  ),
                   const SizedBox(height: 16),
 
-                  // Normal Media Buttons Row (Photo, Video, Poll)
+                  // 2026 Minimalist Text Input Card
+                  GlassCard(
+                    padding: const EdgeInsets.all(16),
+                    borderRadius: 20,
+                    child: TextField(
+                      controller: _contentController,
+                      maxLines: 5,
+                      style: const TextStyle(
+                        color: AppColors.textPrimary,
+                        fontSize: 14.5,
+                        height: 1.45,
+                      ),
+                      decoration: InputDecoration(
+                        hintText: _selectedType == PostType.poll
+                            ? "What is your eyewitness poll question? (e.g. Is the roadblock cleared?)..."
+                            : "What's happening on the ground? Provide objective details...",
+                        hintStyle: const TextStyle(color: AppColors.textMuted, fontSize: 13.5),
+                        border: InputBorder.none,
+                        contentPadding: EdgeInsets.zero,
+                      ),
+                    ),
+                  ),
+                  const SizedBox(height: 14),
+
+                  // 2026 Media Buttons Row (Photo, Video, Poll)
                   Row(
                     children: [
                       _buildMediaButton(
@@ -735,38 +780,38 @@ class _CreatePostScreenState extends State<CreatePostScreen> {
                       ),
                     ],
                   ),
-                  const SizedBox(height: 16),
+                  const SizedBox(height: 14),
 
                   // --- PREVIEW SECTION ---
-                  // 1. Photo Preview Card
                   if (_attachedPhotoUrl != null) ...[
                     _buildPhotoPreviewCard(),
                     const SizedBox(height: 14),
                   ],
 
-                  // 2. Video Preview Card
                   if (_attachedVideoThumbnailUrl != null) ...[
                     _buildVideoPreviewCard(),
                     const SizedBox(height: 14),
                   ],
 
-                  // 4. Poll Creator Card
                   if (_selectedType == PostType.poll) ...[
                     _buildPollCreatorCard(),
                     const SizedBox(height: 14),
                   ],
 
-                  // Post Anonymously Toggle
-                  Container(
+                  // 2026 Bento Post Anonymously Toggle
+                  BentoCard(
                     padding: const EdgeInsets.all(14),
-                    decoration: BoxDecoration(
-                      color: const Color(0xFFF8FAFC),
-                      borderRadius: BorderRadius.circular(14),
-                      border: Border.all(color: AppColors.border),
-                    ),
+                    borderRadius: 18,
                     child: Row(
                       children: [
-                        const Icon(Icons.visibility_off_outlined, color: AppColors.textSecondary, size: 22),
+                        Container(
+                          padding: const EdgeInsets.all(8),
+                          decoration: BoxDecoration(
+                            color: const Color(0xFFF1F5F9),
+                            borderRadius: BorderRadius.circular(10),
+                          ),
+                          child: const Icon(Icons.visibility_off_outlined, color: AppColors.textSecondary, size: 20),
+                        ),
                         const SizedBox(width: 12),
                         const Expanded(
                           child: Column(
@@ -777,14 +822,14 @@ class _CreatePostScreenState extends State<CreatePostScreen> {
                                 style: TextStyle(
                                   color: AppColors.textPrimary,
                                   fontSize: 13.5,
-                                  fontWeight: FontWeight.w700,
+                                  fontWeight: FontWeight.w800,
                                 ),
                               ),
                               Text(
-                                'Hides your identity from the public feed...',
+                                'Hides your profile identity from the public feed...',
                                 style: TextStyle(
                                   color: AppColors.textMuted,
-                                  fontSize: 11.5,
+                                  fontSize: 11,
                                 ),
                               ),
                             ],
@@ -803,99 +848,90 @@ class _CreatePostScreenState extends State<CreatePostScreen> {
             ),
           ),
 
-          // Bottom Verification Status Card
+          // 2026 Bottom Verification Status Card
           Container(
-            margin: const EdgeInsets.all(16),
-            padding: const EdgeInsets.all(16),
-            decoration: BoxDecoration(
-              color: Colors.white,
-              borderRadius: BorderRadius.circular(16),
-              border: Border.all(color: AppColors.border),
-              boxShadow: [
-                BoxShadow(
-                  color: Colors.black.withValues(alpha: 0.05),
-                  blurRadius: 10,
-                  offset: const Offset(0, 4),
-                ),
-              ],
-            ),
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Row(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Container(
-                      width: 36,
-                      height: 36,
-                      decoration: const BoxDecoration(
-                        color: Color(0xFFDCFCE7),
-                        shape: BoxShape.circle,
+            margin: const EdgeInsets.fromLTRB(16, 0, 16, 16),
+            child: GlassCard(
+              padding: const EdgeInsets.all(16),
+              borderRadius: 20,
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Row(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Container(
+                        width: 38,
+                        height: 38,
+                        decoration: const BoxDecoration(
+                          color: Color(0xFFDCFCE7),
+                          shape: BoxShape.circle,
+                        ),
+                        child: const Icon(Icons.verified_user_rounded, color: Color(0xFF15803D), size: 20),
                       ),
-                      child: const Icon(Icons.verified_user, color: Color(0xFF15803D), size: 20),
-                    ),
-                    const SizedBox(width: 12),
-                    Expanded(
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          Row(
-                            mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                            children: [
-                              Container(
-                                padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
-                                decoration: BoxDecoration(
-                                  color: const Color(0xFFDCFCE7),
-                                  borderRadius: BorderRadius.circular(12),
-                                ),
-                                child: const Text(
-                                  'Verified Inside Event',
-                                  style: TextStyle(
-                                    color: Color(0xFF15803D),
-                                    fontSize: 11,
-                                    fontWeight: FontWeight.w700,
+                      const SizedBox(width: 12),
+                      Expanded(
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Row(
+                              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                              children: [
+                                Container(
+                                  padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+                                  decoration: BoxDecoration(
+                                    color: const Color(0xFFDCFCE7),
+                                    borderRadius: BorderRadius.circular(10),
+                                  ),
+                                  child: const Text(
+                                    'Verified Inside Event',
+                                    style: TextStyle(
+                                      color: Color(0xFF15803D),
+                                      fontSize: 10.5,
+                                      fontWeight: FontWeight.w900,
+                                    ),
                                   ),
                                 ),
-                              ),
-                              const Text(
-                                'Active Syncing...',
-                                style: TextStyle(color: AppColors.textMuted, fontSize: 11),
-                              ),
-                            ],
-                          ),
-                          const SizedBox(height: 6),
-                          Text(
-                            'Your location is verified at ${locationService.currentLocation.label ?? 'Jantar Mantar (Delhi)'}',
-                            style: const TextStyle(
-                              color: AppColors.textPrimary,
-                              fontSize: 13,
-                              fontWeight: FontWeight.w700,
+                                const Text(
+                                  'Active GNSS Sync',
+                                  style: TextStyle(color: AppColors.textMuted, fontSize: 10.5, fontWeight: FontWeight.w700),
+                                ),
+                              ],
                             ),
-                          ),
-                          const SizedBox(height: 8),
-                          Row(
-                            children: [
-                              _buildMiniCheck('GPS Confirmed'),
-                              const SizedBox(width: 14),
-                              _buildMiniCheck('Device Integrity'),
-                            ],
-                          ),
-                        ],
+                            const SizedBox(height: 6),
+                            Text(
+                              'Your location is verified at ${locationService.currentLocation.label ?? 'Jantar Mantar (Delhi)'}',
+                              style: const TextStyle(
+                                color: AppColors.textPrimary,
+                                fontSize: 12.5,
+                                fontWeight: FontWeight.w800,
+                              ),
+                            ),
+                            const SizedBox(height: 8),
+                            Row(
+                              children: [
+                                _buildMiniCheck('GPS Confirmed'),
+                                const SizedBox(width: 14),
+                                _buildMiniCheck('Device Integrity'),
+                              ],
+                            ),
+                          ],
+                        ),
                       ),
-                    ),
-                  ],
-                ),
-                const SizedBox(height: 12),
-                ClipRRect(
-                  borderRadius: BorderRadius.circular(4),
-                  child: const LinearProgressIndicator(
-                    value: 0.88,
-                    minHeight: 4,
-                    backgroundColor: Color(0xFFE2E8F0),
-                    valueColor: AlwaysStoppedAnimation<Color>(Color(0xFF15803D)),
+                    ],
                   ),
-                ),
-              ],
+                  const SizedBox(height: 12),
+                  ClipRRect(
+                    borderRadius: BorderRadius.circular(4),
+                    child: const LinearProgressIndicator(
+                      value: 0.88,
+                      minHeight: 4,
+                      backgroundColor: Color(0xFFE2E8F0),
+                      valueColor: AlwaysStoppedAnimation<Color>(Color(0xFF10B981)),
+                    ),
+                  ),
+                ],
+              ),
             ),
           ),
         ],
@@ -917,15 +953,15 @@ class _CreatePostScreenState extends State<CreatePostScreen> {
     return Expanded(
       child: InkWell(
         onTap: onTap,
-        borderRadius: BorderRadius.circular(10),
+        borderRadius: BorderRadius.circular(14),
         child: Container(
           padding: const EdgeInsets.symmetric(vertical: 10),
           decoration: BoxDecoration(
-            color: isSelected ? const Color(0xFFD0E1FD) : const Color(0xFFF1F5F9),
-            borderRadius: BorderRadius.circular(10),
+            color: isSelected ? AppColors.primaryNavy.withValues(alpha: 0.08) : Colors.white,
+            borderRadius: BorderRadius.circular(14),
             border: Border.all(
-              color: isSelected ? AppColors.primaryNavy : Colors.transparent,
-              width: 1.5,
+              color: isSelected ? AppColors.primaryNavy : const Color(0xFFE2E8F0),
+              width: 1.2,
             ),
           ),
           child: Row(
@@ -938,16 +974,16 @@ class _CreatePostScreenState extends State<CreatePostScreen> {
                 style: TextStyle(
                   color: isSelected ? AppColors.primaryNavy : AppColors.textSecondary,
                   fontSize: 12,
-                  fontWeight: FontWeight.w700,
+                  fontWeight: FontWeight.w800,
                 ),
               ),
               if (hasAttachment) ...[
-                const SizedBox(width: 4),
+                const SizedBox(width: 5),
                 Container(
                   width: 6,
                   height: 6,
                   decoration: const BoxDecoration(
-                    color: Color(0xFF15803D),
+                    color: Color(0xFF10B981),
                     shape: BoxShape.circle,
                   ),
                 ),
@@ -964,9 +1000,9 @@ class _CreatePostScreenState extends State<CreatePostScreen> {
   Widget _buildPhotoPreviewCard() {
     return Container(
       decoration: BoxDecoration(
-        color: const Color(0xFFF8FAFC),
-        borderRadius: BorderRadius.circular(14),
-        border: Border.all(color: AppColors.border),
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(18),
+        border: Border.all(color: const Color(0xFFE2E8F0)),
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
@@ -974,7 +1010,7 @@ class _CreatePostScreenState extends State<CreatePostScreen> {
           Stack(
             children: [
               ClipRRect(
-                borderRadius: const BorderRadius.vertical(top: Radius.circular(13)),
+                borderRadius: const BorderRadius.vertical(top: Radius.circular(17)),
                 child: SafeImageWidget(
                   urlOrData: _attachedPhotoUrl!,
                   height: 180,
@@ -997,7 +1033,7 @@ class _CreatePostScreenState extends State<CreatePostScreen> {
                   child: Container(
                     padding: const EdgeInsets.all(6),
                     decoration: BoxDecoration(
-                      color: Colors.black.withValues(alpha: 0.7),
+                      color: Colors.black.withValues(alpha: 0.65),
                       shape: BoxShape.circle,
                     ),
                     child: const Icon(Icons.close, size: 16, color: Colors.white),
@@ -1007,7 +1043,7 @@ class _CreatePostScreenState extends State<CreatePostScreen> {
             ],
           ),
           Padding(
-            padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+            padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
             child: Row(
               mainAxisAlignment: MainAxisAlignment.spaceBetween,
               children: [
@@ -1016,16 +1052,16 @@ class _CreatePostScreenState extends State<CreatePostScreen> {
                     _attachedPhotoName ?? 'photo.jpg',
                     overflow: TextOverflow.ellipsis,
                     style: const TextStyle(
-                      color: AppColors.primaryNavy,
+                      color: AppColors.textPrimary,
                       fontSize: 12.5,
-                      fontWeight: FontWeight.w700,
+                      fontWeight: FontWeight.w800,
                     ),
                   ),
                 ),
                 TextButton.icon(
                   onPressed: _handlePhotoTap,
-                  icon: const Icon(Icons.sync, size: 14, color: AppColors.primaryNavy),
-                  label: const Text('Change', style: TextStyle(fontSize: 12, color: AppColors.primaryNavy, fontWeight: FontWeight.w700)),
+                  icon: const Icon(Icons.sync_rounded, size: 14, color: AppColors.primaryNavy),
+                  label: const Text('Change', style: TextStyle(fontSize: 12, color: AppColors.primaryNavy, fontWeight: FontWeight.w800)),
                 ),
               ],
             ),
@@ -1038,9 +1074,9 @@ class _CreatePostScreenState extends State<CreatePostScreen> {
   Widget _buildVideoPreviewCard() {
     return Container(
       decoration: BoxDecoration(
-        color: const Color(0xFFF8FAFC),
-        borderRadius: BorderRadius.circular(14),
-        border: Border.all(color: AppColors.border),
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(18),
+        border: Border.all(color: const Color(0xFFE2E8F0)),
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
@@ -1049,7 +1085,7 @@ class _CreatePostScreenState extends State<CreatePostScreen> {
             alignment: Alignment.center,
             children: [
               ClipRRect(
-                borderRadius: const BorderRadius.vertical(top: Radius.circular(13)),
+                borderRadius: const BorderRadius.vertical(top: Radius.circular(17)),
                 child: SafeImageWidget(
                   urlOrData: _attachedVideoThumbnailUrl!,
                   height: 180,
@@ -1060,7 +1096,7 @@ class _CreatePostScreenState extends State<CreatePostScreen> {
               Container(
                 padding: const EdgeInsets.all(12),
                 decoration: BoxDecoration(
-                  color: Colors.black.withValues(alpha: 0.65),
+                  color: Colors.black.withValues(alpha: 0.6),
                   shape: BoxShape.circle,
                 ),
                 child: const Icon(Icons.play_arrow_rounded, color: Colors.white, size: 30),
@@ -1076,7 +1112,7 @@ class _CreatePostScreenState extends State<CreatePostScreen> {
                   ),
                   child: Text(
                     '0:${_attachedVideoDuration.toString().padLeft(2, '0')}',
-                    style: const TextStyle(color: Colors.white, fontSize: 11, fontWeight: FontWeight.w700),
+                    style: const TextStyle(color: Colors.white, fontSize: 11, fontWeight: FontWeight.w800),
                   ),
                 ),
               ),
@@ -1095,7 +1131,7 @@ class _CreatePostScreenState extends State<CreatePostScreen> {
                   child: Container(
                     padding: const EdgeInsets.all(6),
                     decoration: BoxDecoration(
-                      color: Colors.black.withValues(alpha: 0.7),
+                      color: Colors.black.withValues(alpha: 0.65),
                       shape: BoxShape.circle,
                     ),
                     child: const Icon(Icons.close, size: 16, color: Colors.white),
@@ -1105,7 +1141,7 @@ class _CreatePostScreenState extends State<CreatePostScreen> {
             ],
           ),
           Padding(
-            padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+            padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
             child: Row(
               mainAxisAlignment: MainAxisAlignment.spaceBetween,
               children: [
@@ -1114,16 +1150,16 @@ class _CreatePostScreenState extends State<CreatePostScreen> {
                     _attachedVideoName ?? 'video.mp4',
                     overflow: TextOverflow.ellipsis,
                     style: const TextStyle(
-                      color: AppColors.primaryNavy,
+                      color: AppColors.textPrimary,
                       fontSize: 12.5,
-                      fontWeight: FontWeight.w700,
+                      fontWeight: FontWeight.w800,
                     ),
                   ),
                 ),
                 TextButton.icon(
                   onPressed: _handleVideoTap,
-                  icon: const Icon(Icons.sync, size: 14, color: AppColors.primaryNavy),
-                  label: const Text('Change', style: TextStyle(fontSize: 12, color: AppColors.primaryNavy, fontWeight: FontWeight.w700)),
+                  icon: const Icon(Icons.sync_rounded, size: 14, color: AppColors.primaryNavy),
+                  label: const Text('Change', style: TextStyle(fontSize: 12, color: AppColors.primaryNavy, fontWeight: FontWeight.w800)),
                 ),
               ],
             ),
@@ -1133,8 +1169,6 @@ class _CreatePostScreenState extends State<CreatePostScreen> {
     );
   }
 
-
-
   Widget _buildPollCreatorCard() {
     const letters = ['A', 'B', 'C', 'D', 'E', 'F'];
 
@@ -1142,7 +1176,7 @@ class _CreatePostScreenState extends State<CreatePostScreen> {
       padding: const EdgeInsets.all(16),
       decoration: BoxDecoration(
         color: const Color(0xFFF8FAFC),
-        borderRadius: BorderRadius.circular(16),
+        borderRadius: BorderRadius.circular(20),
         border: Border.all(color: const Color(0xFFCBD5E1)),
       ),
       child: Column(
@@ -1156,8 +1190,8 @@ class _CreatePostScreenState extends State<CreatePostScreen> {
                   Container(
                     width: 32,
                     height: 32,
-                    decoration: const BoxDecoration(
-                      color: Color(0xFFD0E1FD),
+                    decoration: BoxDecoration(
+                      color: AppColors.primaryNavy.withValues(alpha: 0.08),
                       shape: BoxShape.circle,
                     ),
                     child: const Icon(
@@ -1174,9 +1208,9 @@ class _CreatePostScreenState extends State<CreatePostScreen> {
                         'EYEWITNESS POLL BUILDER',
                         style: TextStyle(
                           color: AppColors.primaryNavy,
-                          fontSize: 12,
-                          fontWeight: FontWeight.w800,
-                          letterSpacing: 0.5,
+                          fontSize: 11.5,
+                          fontWeight: FontWeight.w900,
+                          letterSpacing: 0.8,
                         ),
                       ),
                       Text(
@@ -1192,7 +1226,7 @@ class _CreatePostScreenState extends State<CreatePostScreen> {
                 ],
               ),
               IconButton(
-                icon: const Icon(Icons.close, size: 18, color: AppColors.textMuted),
+                icon: const Icon(Icons.close_rounded, size: 18, color: AppColors.textMuted),
                 onPressed: () {
                   setState(() {
                     _selectedType = PostType.text;
@@ -1213,8 +1247,8 @@ class _CreatePostScreenState extends State<CreatePostScreen> {
               margin: const EdgeInsets.only(bottom: 10),
               decoration: BoxDecoration(
                 color: Colors.white,
-                borderRadius: BorderRadius.circular(12),
-                border: Border.all(color: AppColors.border),
+                borderRadius: BorderRadius.circular(14),
+                border: Border.all(color: const Color(0xFFE2E8F0)),
               ),
               padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 4),
               child: Row(
@@ -1224,7 +1258,7 @@ class _CreatePostScreenState extends State<CreatePostScreen> {
                     height: 24,
                     decoration: BoxDecoration(
                       color: const Color(0xFFF1F5F9),
-                      borderRadius: BorderRadius.circular(6),
+                      borderRadius: BorderRadius.circular(8),
                       border: Border.all(color: const Color(0xFFCBD5E1)),
                     ),
                     alignment: Alignment.center,
@@ -1233,7 +1267,7 @@ class _CreatePostScreenState extends State<CreatePostScreen> {
                       style: const TextStyle(
                         color: AppColors.primaryNavy,
                         fontSize: 11,
-                        fontWeight: FontWeight.w800,
+                        fontWeight: FontWeight.w900,
                       ),
                     ),
                   ),
@@ -1291,7 +1325,7 @@ class _CreatePostScreenState extends State<CreatePostScreen> {
                   foregroundColor: AppColors.primaryNavy,
                   padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
                   shape: RoundedRectangleBorder(
-                    borderRadius: BorderRadius.circular(8),
+                    borderRadius: BorderRadius.circular(10),
                     side: const BorderSide(color: Color(0xFFCBD5E1)),
                   ),
                 ),
@@ -1303,7 +1337,7 @@ class _CreatePostScreenState extends State<CreatePostScreen> {
                 icon: const Icon(Icons.add_rounded, size: 16),
                 label: Text(
                   'Add Option (${_pollOptionControllers.length}/6)',
-                  style: const TextStyle(fontSize: 12, fontWeight: FontWeight.w700),
+                  style: const TextStyle(fontSize: 12, fontWeight: FontWeight.w800),
                 ),
               ),
             ),
@@ -1313,7 +1347,7 @@ class _CreatePostScreenState extends State<CreatePostScreen> {
             padding: const EdgeInsets.all(10),
             decoration: BoxDecoration(
               color: const Color(0xFFEFF6FF),
-              borderRadius: BorderRadius.circular(10),
+              borderRadius: BorderRadius.circular(12),
               border: Border.all(color: const Color(0xFFBFDBFE)),
             ),
             child: Row(
@@ -1341,14 +1375,14 @@ class _CreatePostScreenState extends State<CreatePostScreen> {
   Widget _buildMiniCheck(String label) {
     return Row(
       children: [
-        const Icon(Icons.check_circle, color: Color(0xFF15803D), size: 14),
+        const Icon(Icons.check_circle_rounded, color: Color(0xFF15803D), size: 14),
         const SizedBox(width: 4),
         Text(
           label,
           style: const TextStyle(
             color: AppColors.textSecondary,
             fontSize: 11,
-            fontWeight: FontWeight.w600,
+            fontWeight: FontWeight.w700,
           ),
         ),
       ],

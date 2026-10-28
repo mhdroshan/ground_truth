@@ -108,7 +108,7 @@ class _LiveLocationTagsSliderState extends State<LiveLocationTagsSlider> {
       crossAxisAlignment: CrossAxisAlignment.center,
       children: [
         SizedBox(
-          height: 248,
+          height: 254,
           child: Listener(
             onPointerDown: (_) {
               _isInteracting = true;
@@ -147,7 +147,7 @@ class _LiveLocationTagsSliderState extends State<LiveLocationTagsSlider> {
 
         // Animated Dots Indicator (only if multiple matching tags)
         if (_isMulti) ...[
-          const SizedBox(height: 8),
+          const SizedBox(height: 10),
           Row(
             mainAxisAlignment: MainAxisAlignment.center,
             children: List.generate(_itemCount, (i) {
@@ -187,31 +187,31 @@ class _LiveLocationTagsSliderState extends State<LiveLocationTagsSlider> {
   ) {
     return Container(
       margin: const EdgeInsets.fromLTRB(16, 8, 16, 0),
-      padding: const EdgeInsets.all(16),
+      padding: const EdgeInsets.all(18),
       decoration: BoxDecoration(
         gradient: const LinearGradient(
           colors: [
-            Color(0xFF091427),
-            Color(0xFF132B52),
-            Color(0xFF1A3D73),
+            Color(0xFF09101D),
+            Color(0xFF101F38),
+            Color(0xFF18325B),
           ],
           begin: Alignment.topLeft,
           end: Alignment.bottomRight,
         ),
-        borderRadius: BorderRadius.circular(20),
+        borderRadius: BorderRadius.circular(24),
         border: Border.all(
-          color: Colors.white.withValues(alpha: 0.14),
+          color: Colors.white.withValues(alpha: 0.16),
           width: 1.2,
         ),
         boxShadow: [
           BoxShadow(
-            color: const Color(0xFF0038A8).withValues(alpha: 0.28),
-            blurRadius: 18,
-            offset: const Offset(0, 6),
+            color: const Color(0xFF0038A8).withValues(alpha: 0.22),
+            blurRadius: 24,
+            offset: const Offset(0, 8),
           ),
           BoxShadow(
-            color: Colors.black.withValues(alpha: 0.16),
-            blurRadius: 8,
+            color: Colors.black.withValues(alpha: 0.2),
+            blurRadius: 10,
             offset: const Offset(0, 2),
           ),
         ],
@@ -227,39 +227,39 @@ class _LiveLocationTagsSliderState extends State<LiveLocationTagsSlider> {
               Container(
                 padding: const EdgeInsets.symmetric(horizontal: 9, vertical: 4),
                 decoration: BoxDecoration(
-                  color: const Color(0xFFEF4444).withValues(alpha: 0.22),
+                  color: const Color(0xFFEF4444).withValues(alpha: 0.2),
                   borderRadius: BorderRadius.circular(20),
                   border: Border.all(
                     color: const Color(0xFFEF4444).withValues(alpha: 0.8),
-                    width: 1.2,
+                    width: 1.0,
                   ),
                 ),
                 child: Row(
                   mainAxisSize: MainAxisSize.min,
                   children: [
                     Container(
-                      width: 7.5,
-                      height: 7.5,
+                      width: 7,
+                      height: 7,
                       decoration: BoxDecoration(
                         color: const Color(0xFFEF4444),
                         shape: BoxShape.circle,
                         boxShadow: [
                           BoxShadow(
                             color: const Color(0xFFEF4444).withValues(alpha: 0.8),
-                            blurRadius: 4,
+                            blurRadius: 6,
                             spreadRadius: 1,
                           ),
                         ],
                       ),
                     ),
-                    const SizedBox(width: 5.5),
+                    const SizedBox(width: 5),
                     const Text(
-                      'LIVE IN YOUR LOCATION',
+                      'LIVE IN LOCATION',
                       style: TextStyle(
                         color: Color(0xFFFECACA),
-                        fontSize: 10,
+                        fontSize: 9.5,
                         fontWeight: FontWeight.w900,
-                        letterSpacing: 0.6,
+                        letterSpacing: 0.8,
                       ),
                     ),
                   ],
@@ -270,12 +270,13 @@ class _LiveLocationTagsSliderState extends State<LiveLocationTagsSlider> {
               // Tag Name Pill
               Flexible(
                 child: Container(
-                  padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                  padding: const EdgeInsets.symmetric(horizontal: 9, vertical: 4),
                   decoration: BoxDecoration(
-                    color: Colors.white.withValues(alpha: 0.15),
+                    color: Colors.white.withValues(alpha: 0.14),
                     borderRadius: BorderRadius.circular(16),
                     border: Border.all(
                       color: Colors.white.withValues(alpha: 0.22),
+                      width: 0.9,
                     ),
                   ),
                   child: Text(
@@ -316,7 +317,7 @@ class _LiveLocationTagsSliderState extends State<LiveLocationTagsSlider> {
                         '${index + 1}/$totalCount',
                         style: const TextStyle(
                           color: Colors.white,
-                          fontSize: 10.5,
+                          fontSize: 10,
                           fontWeight: FontWeight.w800,
                           letterSpacing: 0.3,
                         ),
@@ -369,21 +370,22 @@ class _LiveLocationTagsSliderState extends State<LiveLocationTagsSlider> {
                 fontSize: 18,
                 fontWeight: FontWeight.w900,
                 height: 1.25,
-                letterSpacing: -0.2,
+                letterSpacing: -0.3,
               ),
               maxLines: 1,
               overflow: TextOverflow.ellipsis,
             ),
           ),
 
-          // Eyewitness Verification Needed Banner
+          // Eyewitness Verification Needed Bento Module
           Container(
-            padding: const EdgeInsets.symmetric(horizontal: 11, vertical: 10),
+            padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
             decoration: BoxDecoration(
               color: Colors.white.withValues(alpha: 0.08),
-              borderRadius: BorderRadius.circular(12),
+              borderRadius: BorderRadius.circular(14),
               border: Border.all(
-                color: const Color(0xFFFBBF24).withValues(alpha: 0.28),
+                color: const Color(0xFFFBBF24).withValues(alpha: 0.3),
+                width: 0.9,
               ),
             ),
             child: Row(
@@ -392,7 +394,7 @@ class _LiveLocationTagsSliderState extends State<LiveLocationTagsSlider> {
                 const Icon(
                   Icons.campaign_rounded,
                   color: Color(0xFFFBBF24),
-                  size: 22,
+                  size: 20,
                 ),
                 const SizedBox(width: 9),
                 Expanded(
@@ -403,16 +405,16 @@ class _LiveLocationTagsSliderState extends State<LiveLocationTagsSlider> {
                         'Eyewitness Verification Needed!',
                         style: TextStyle(
                           color: Color(0xFFFBBF24),
-                          fontSize: 12.5,
-                          fontWeight: FontWeight.w800,
+                          fontSize: 12,
+                          fontWeight: FontWeight.w900,
                         ),
                       ),
-                      const SizedBox(height: 2.5),
+                      const SizedBox(height: 2),
                       Text(
-                        'There is an event happening in your location (${event.formattedRadius} radius). Please write something about what is happening around you!',
+                        'Event active in your location (${event.formattedRadius} radius). Report and verify ground reality.',
                         style: TextStyle(
-                          color: Colors.white.withValues(alpha: 0.9),
-                          fontSize: 11.5,
+                          color: Colors.white.withValues(alpha: 0.88),
+                          fontSize: 11,
                           height: 1.35,
                         ),
                         maxLines: 2,
@@ -432,12 +434,12 @@ class _LiveLocationTagsSliderState extends State<LiveLocationTagsSlider> {
                 flex: 3,
                 child: ElevatedButton.icon(
                   style: ElevatedButton.styleFrom(
-                    backgroundColor: const Color(0xFF22C55E),
-                    foregroundColor: Colors.black,
+                    backgroundColor: const Color(0xFF10B981),
+                    foregroundColor: Colors.white,
                     elevation: 0,
-                    padding: const EdgeInsets.symmetric(vertical: 11.5),
+                    padding: const EdgeInsets.symmetric(vertical: 12),
                     shape: RoundedRectangleBorder(
-                      borderRadius: BorderRadius.circular(12),
+                      borderRadius: BorderRadius.circular(14),
                     ),
                   ),
                   onPressed: () {
@@ -450,14 +452,15 @@ class _LiveLocationTagsSliderState extends State<LiveLocationTagsSlider> {
                   },
                   icon: const Icon(
                     Icons.edit_note_rounded,
-                    size: 20,
-                    color: Colors.black,
+                    size: 19,
+                    color: Colors.white,
                   ),
                   label: const Text(
                     'Write Post Now',
                     style: TextStyle(
                       fontSize: 13,
                       fontWeight: FontWeight.w900,
+                      letterSpacing: 0.2,
                     ),
                   ),
                 ),
@@ -468,14 +471,14 @@ class _LiveLocationTagsSliderState extends State<LiveLocationTagsSlider> {
                 child: OutlinedButton(
                   style: OutlinedButton.styleFrom(
                     foregroundColor: Colors.white,
-                    backgroundColor: Colors.white.withValues(alpha: 0.08),
+                    backgroundColor: Colors.white.withValues(alpha: 0.1),
                     side: BorderSide(
-                      color: Colors.white.withValues(alpha: 0.35),
-                      width: 1.2,
+                      color: Colors.white.withValues(alpha: 0.3),
+                      width: 1.0,
                     ),
-                    padding: const EdgeInsets.symmetric(vertical: 11.5),
+                    padding: const EdgeInsets.symmetric(vertical: 12),
                     shape: RoundedRectangleBorder(
-                      borderRadius: BorderRadius.circular(12),
+                      borderRadius: BorderRadius.circular(14),
                     ),
                   ),
                   onPressed: () {

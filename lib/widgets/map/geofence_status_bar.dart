@@ -30,8 +30,8 @@ class GeofenceStatusBar extends StatelessWidget {
     String statusSubtitle;
 
     if (!isClean) {
-      bgColor = AppColors.alertRed.withValues(alpha: 0.15);
-      borderColor = AppColors.alertRed.withValues(alpha: 0.5);
+      bgColor = AppColors.alertRed.withValues(alpha: 0.12);
+      borderColor = AppColors.alertRed.withValues(alpha: 0.4);
       accentColor = AppColors.alertRed;
       iconData = Icons.gpp_bad_rounded;
       statusTitle = 'SECURITY INTEGRITY VIOLATION DETECTED';
@@ -39,14 +39,14 @@ class GeofenceStatusBar extends StatelessWidget {
           ? 'Device environment compromised (Root/Jailbreak flagged)'
           : 'Mock GPS / Fake location provider active. Posting blocked.';
     } else if (isInside) {
-      bgColor = AppColors.verifiedGreen.withValues(alpha: 0.12);
-      borderColor = AppColors.verifiedGreen.withValues(alpha: 0.4);
+      bgColor = const Color(0xFFE8F7F0);
+      borderColor = AppColors.verifiedGreen.withValues(alpha: 0.35);
       accentColor = AppColors.verifiedGreen;
       iconData = Icons.verified_user_rounded;
       statusTitle = 'GEOFENCE VERIFIED • ON-SITE EYEWITNESS';
       statusSubtitle = 'GNSS Precision <${locationService.gpsAccuracyMeters.toStringAsFixed(1)}m • Authorized to contribute posts & comments';
     } else {
-      bgColor = AppColors.surfaceElevated;
+      bgColor = AppColors.bentoSurfaceSecondary;
       borderColor = AppColors.border;
       accentColor = AppColors.alertAmber;
       iconData = Icons.visibility_outlined;
@@ -56,18 +56,18 @@ class GeofenceStatusBar extends StatelessWidget {
 
     return Container(
       margin: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-      padding: const EdgeInsets.all(12),
+      padding: const EdgeInsets.all(14),
       decoration: BoxDecoration(
         color: bgColor,
-        borderRadius: BorderRadius.circular(12),
-        border: Border.all(color: borderColor, width: 1.2),
+        borderRadius: BorderRadius.circular(16),
+        border: Border.all(color: borderColor, width: 1.0),
       ),
       child: Row(
         children: [
           Container(
             padding: const EdgeInsets.all(8),
             decoration: BoxDecoration(
-              color: accentColor.withValues(alpha: 0.2),
+              color: accentColor.withValues(alpha: 0.16),
               shape: BoxShape.circle,
             ),
             child: Icon(iconData, color: accentColor, size: 18),
@@ -85,9 +85,9 @@ class GeofenceStatusBar extends StatelessWidget {
                         statusTitle,
                         style: TextStyle(
                           color: accentColor,
-                          fontSize: 11.5,
-                          fontWeight: FontWeight.w800,
-                          letterSpacing: 0.5,
+                          fontSize: 11,
+                          fontWeight: FontWeight.w900,
+                          letterSpacing: 0.6,
                         ),
                         maxLines: 1,
                         overflow: TextOverflow.ellipsis,
@@ -96,30 +96,31 @@ class GeofenceStatusBar extends StatelessWidget {
                     if (isInside && isClean) ...[
                       const SizedBox(width: 6),
                       Container(
-                        padding: const EdgeInsets.symmetric(horizontal: 5, vertical: 1),
+                        padding: const EdgeInsets.symmetric(horizontal: 5, vertical: 1.5),
                         decoration: BoxDecoration(
-                          color: AppColors.verifiedGreen,
+                          color: accentColor.withValues(alpha: 0.2),
                           borderRadius: BorderRadius.circular(4),
                         ),
-                        child: const Text(
+                        child: Text(
                           'ACTIVE',
                           style: TextStyle(
-                            color: Colors.black,
+                            color: accentColor,
                             fontSize: 8.5,
                             fontWeight: FontWeight.w900,
+                            letterSpacing: 0.5,
                           ),
                         ),
                       ),
                     ],
                   ],
                 ),
-                const SizedBox(height: 2),
+                const SizedBox(height: 3),
                 Text(
                   statusSubtitle,
                   style: const TextStyle(
                     color: AppColors.textSecondary,
-                    fontSize: 11,
-                    height: 1.3,
+                    fontSize: 11.5,
+                    height: 1.35,
                   ),
                 ),
               ],
@@ -128,9 +129,10 @@ class GeofenceStatusBar extends StatelessWidget {
           if (onInspectVerification != null) ...[
             const SizedBox(width: 8),
             IconButton(
-              icon: const Icon(Icons.info_outline, size: 18, color: AppColors.textMuted),
+              icon: const Icon(Icons.chevron_right_rounded, color: AppColors.primaryNavy),
               onPressed: onInspectVerification,
-              tooltip: 'Verification Audit',
+              padding: EdgeInsets.zero,
+              constraints: const BoxConstraints(),
             ),
           ],
         ],

@@ -1,3 +1,4 @@
+import 'dart:ui';
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import '../models/event_model.dart';
@@ -68,16 +69,17 @@ class _WriteScreenState extends State<WriteScreen> {
     });
 
     return Scaffold(
-      backgroundColor: const Color(0xFFF8FAFC),
+      backgroundColor: AppColors.background,
       appBar: AppBar(
-        backgroundColor: Colors.white,
+        backgroundColor: Colors.white.withValues(alpha: 0.85),
+        elevation: 0,
         title: Row(
           children: [
             Container(
-              padding: const EdgeInsets.all(6),
+              padding: const EdgeInsets.all(7),
               decoration: BoxDecoration(
-                color: const Color(0xFFD0E1FD),
-                borderRadius: BorderRadius.circular(8),
+                color: AppColors.primaryNavy.withValues(alpha: 0.1),
+                borderRadius: BorderRadius.circular(10),
               ),
               child: const Icon(
                 Icons.edit_note_rounded,
@@ -90,16 +92,16 @@ class _WriteScreenState extends State<WriteScreen> {
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 Text(
-                  'Write Eyewitness Report',
+                  'Write Report',
                   style: TextStyle(
                     color: AppColors.primaryNavy,
                     fontSize: 18,
                     fontWeight: FontWeight.w900,
-                    letterSpacing: -0.3,
+                    letterSpacing: -0.4,
                   ),
                 ),
                 Text(
-                  'Select an active tag to submit eyewitness reports',
+                  'Select verified tag to submit eyewitness telemetry',
                   style: TextStyle(
                     color: AppColors.textSecondary,
                     fontSize: 10.5,
@@ -111,24 +113,31 @@ class _WriteScreenState extends State<WriteScreen> {
           ],
         ),
         actions: [
-          TextButton.icon(
-            onPressed: () {
-              Navigator.push(
-                context,
-                MaterialPageRoute(builder: (context) => const CreateTagScreen()),
-              );
-            },
-            icon: const Icon(Icons.add_circle_outline, size: 16, color: AppColors.primaryNavy),
-            label: const Text(
-              'New Tag',
-              style: TextStyle(
-                color: AppColors.primaryNavy,
-                fontWeight: FontWeight.w800,
-                fontSize: 12,
+          Padding(
+            padding: const EdgeInsets.only(right: 8),
+            child: TextButton.icon(
+              onPressed: () {
+                Navigator.push(
+                  context,
+                  MaterialPageRoute(builder: (context) => const CreateTagScreen()),
+                );
+              },
+              style: TextButton.styleFrom(
+                backgroundColor: AppColors.primaryNavy.withValues(alpha: 0.08),
+                padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+              ),
+              icon: const Icon(Icons.add_circle_outline_rounded, size: 15, color: AppColors.primaryNavy),
+              label: const Text(
+                'New Tag',
+                style: TextStyle(
+                  color: AppColors.primaryNavy,
+                  fontWeight: FontWeight.w800,
+                  fontSize: 11.5,
+                ),
               ),
             ),
           ),
-          const SizedBox(width: 6),
         ],
       ),
       body: RefreshIndicator(
@@ -153,23 +162,24 @@ class _WriteScreenState extends State<WriteScreen> {
 
               const SizedBox(height: 16),
 
-              // Tag Search & Quick Filter
+              // Tag Search & Quick Filter Container
               Container(
                 padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 2),
                 decoration: BoxDecoration(
                   color: Colors.white,
-                  borderRadius: BorderRadius.circular(14),
-                  border: Border.all(color: AppColors.border),
-                  boxShadow: [
+                  borderRadius: BorderRadius.circular(20),
+                  border: Border.all(color: AppColors.bentoBorder, width: 0.9),
+                  boxShadow: const [
                     BoxShadow(
-                      color: Colors.black.withValues(alpha: 0.02),
-                      blurRadius: 6,
+                      color: Color(0x060F172A),
+                      blurRadius: 10,
+                      offset: Offset(0, 2),
                     ),
                   ],
                 ),
                 child: Row(
                   children: [
-                    const Icon(Icons.search, color: AppColors.primaryNavy, size: 20),
+                    const Icon(Icons.search_rounded, color: AppColors.primaryNavy, size: 20),
                     const SizedBox(width: 10),
                     Expanded(
                       child: TextField(
@@ -180,14 +190,16 @@ class _WriteScreenState extends State<WriteScreen> {
                           hintText: 'Search active tags by name, city, or category...',
                           hintStyle: TextStyle(color: AppColors.textMuted, fontSize: 13),
                           border: InputBorder.none,
+                          enabledBorder: InputBorder.none,
+                          focusedBorder: InputBorder.none,
                           isDense: true,
-                          contentPadding: EdgeInsets.symmetric(vertical: 12),
+                          contentPadding: EdgeInsets.symmetric(vertical: 13),
                         ),
                       ),
                     ),
                     if (_searchQuery.isNotEmpty)
                       IconButton(
-                        icon: const Icon(Icons.close, size: 18, color: AppColors.textMuted),
+                        icon: const Icon(Icons.close_rounded, size: 18, color: AppColors.textMuted),
                         onPressed: () {
                           _searchController.clear();
                           setState(() => _searchQuery = '');
@@ -217,28 +229,29 @@ class _WriteScreenState extends State<WriteScreen> {
                   ],
                 ),
               ),
-              const SizedBox(height: 16),
+              const SizedBox(height: 18),
 
-              // Section Header
+              // Section Header (Exaggerated Minimalism)
               Row(
                 mainAxisAlignment: MainAxisAlignment.spaceBetween,
                 children: [
                   const Text(
-                    'Available Event Tags for Reporting',
+                    'Active Reporting Zones',
                     style: TextStyle(
                       color: AppColors.textPrimary,
                       fontSize: 16,
-                      fontWeight: FontWeight.w800,
+                      fontWeight: FontWeight.w900,
+                      letterSpacing: -0.3,
                     ),
                   ),
                   Text(
                     eventsUserIsInside.isNotEmpty
-                        ? '${eventsUserIsInside.length} in boundary • ${tags.length} tags'
+                        ? '${eventsUserIsInside.length} in zone • ${tags.length} tags'
                         : '${tags.length} Active Tags',
                     style: const TextStyle(
                       color: AppColors.textSecondary,
-                      fontSize: 12,
-                      fontWeight: FontWeight.w600,
+                      fontSize: 11.5,
+                      fontWeight: FontWeight.w700,
                     ),
                   ),
                 ],
@@ -252,7 +265,7 @@ class _WriteScreenState extends State<WriteScreen> {
                   padding: const EdgeInsets.symmetric(vertical: 36, horizontal: 24),
                   decoration: BoxDecoration(
                     color: Colors.white,
-                    borderRadius: BorderRadius.circular(16),
+                    borderRadius: BorderRadius.circular(20),
                     border: Border.all(color: AppColors.border),
                   ),
                   child: const Column(
@@ -283,7 +296,7 @@ class _WriteScreenState extends State<WriteScreen> {
                   padding: const EdgeInsets.all(32),
                   decoration: BoxDecoration(
                     color: Colors.white,
-                    borderRadius: BorderRadius.circular(16),
+                    borderRadius: BorderRadius.circular(20),
                     border: Border.all(color: AppColors.border),
                   ),
                   child: Column(
@@ -297,7 +310,7 @@ class _WriteScreenState extends State<WriteScreen> {
                         style: const TextStyle(
                           color: AppColors.textPrimary,
                           fontSize: 15,
-                          fontWeight: FontWeight.w700,
+                          fontWeight: FontWeight.w800,
                         ),
                       ),
                       const SizedBox(height: 6),
@@ -308,12 +321,12 @@ class _WriteScreenState extends State<WriteScreen> {
                         style: const TextStyle(color: AppColors.textSecondary, fontSize: 12),
                         textAlign: TextAlign.center,
                       ),
-                      const SizedBox(height: 14),
+                      const SizedBox(height: 16),
                       ElevatedButton.icon(
                         style: ElevatedButton.styleFrom(
                           backgroundColor: AppColors.primaryNavy,
                           foregroundColor: Colors.white,
-                          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+                          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
                         ),
                         onPressed: () {
                           Navigator.push(
@@ -322,7 +335,7 @@ class _WriteScreenState extends State<WriteScreen> {
                           );
                         },
                         icon: const Icon(Icons.add, size: 16),
-                        label: const Text('Create New Event Tag'),
+                        label: const Text('Create New Event Tag', style: TextStyle(fontWeight: FontWeight.w800)),
                       ),
                     ],
                   ),
@@ -342,7 +355,7 @@ class _WriteScreenState extends State<WriteScreen> {
                   },
                 ),
 
-              const SizedBox(height: 24),
+              const SizedBox(height: 100),
             ],
           ),
         ),
@@ -352,19 +365,19 @@ class _WriteScreenState extends State<WriteScreen> {
 
   Widget _buildInsideTagHero(BuildContext context, EventModel insideEvent) {
     return Container(
-      padding: const EdgeInsets.all(16),
+      padding: const EdgeInsets.all(18),
       decoration: BoxDecoration(
         gradient: const LinearGradient(
-          colors: [Color(0xFF0F5132), Color(0xFF198754)],
+          colors: [Color(0xFF0F5132), Color(0xFF198754), Color(0xFF10B981)],
           begin: Alignment.topLeft,
           end: Alignment.bottomRight,
         ),
-        borderRadius: BorderRadius.circular(18),
+        borderRadius: BorderRadius.circular(22),
         boxShadow: [
           BoxShadow(
-            color: const Color(0xFF198754).withValues(alpha: 0.3),
-            blurRadius: 12,
-            offset: const Offset(0, 4),
+            color: const Color(0xFF10B981).withValues(alpha: 0.3),
+            blurRadius: 18,
+            offset: const Offset(0, 6),
           ),
         ],
       ),
@@ -383,12 +396,12 @@ class _WriteScreenState extends State<WriteScreen> {
               ),
               const SizedBox(width: 8),
               const Text(
-                'YOU ARE INSIDE AN ACTIVE EVENT ZONE',
+                'INSIDE VERIFIED GEOFENCE ZONE',
                 style: TextStyle(
                   color: Color(0xFFD1E7DD),
-                  fontSize: 10.5,
+                  fontSize: 10,
                   fontWeight: FontWeight.w900,
-                  letterSpacing: 0.6,
+                  letterSpacing: 0.8,
                 ),
               ),
             ],
@@ -398,18 +411,19 @@ class _WriteScreenState extends State<WriteScreen> {
             insideEvent.tagName,
             style: const TextStyle(
               color: Colors.white,
-              fontSize: 18,
+              fontSize: 19,
               fontWeight: FontWeight.w900,
+              letterSpacing: -0.3,
             ),
           ),
           Text(
             '${insideEvent.title} (${insideEvent.formattedRadius} Radius)',
             style: TextStyle(
-              color: Colors.white.withValues(alpha: 0.9),
+              color: Colors.white.withValues(alpha: 0.92),
               fontSize: 12,
             ),
           ),
-          const SizedBox(height: 12),
+          const SizedBox(height: 14),
           SizedBox(
             width: double.infinity,
             child: ElevatedButton.icon(
@@ -418,7 +432,7 @@ class _WriteScreenState extends State<WriteScreen> {
                 foregroundColor: const Color(0xFF0F5132),
                 elevation: 0,
                 padding: const EdgeInsets.symmetric(vertical: 12),
-                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
               ),
               onPressed: () {
                 Navigator.push(
@@ -431,7 +445,7 @@ class _WriteScreenState extends State<WriteScreen> {
               icon: const Icon(Icons.rate_review_rounded, size: 18),
               label: const Text(
                 'Draft Eyewitness Report Now',
-                style: TextStyle(fontWeight: FontWeight.w800, fontSize: 13),
+                style: TextStyle(fontWeight: FontWeight.w900, fontSize: 13),
               ),
             ),
           ),
@@ -442,11 +456,11 @@ class _WriteScreenState extends State<WriteScreen> {
 
   Widget _buildLocationInfoBanner(BuildContext context, LocationService locationService) {
     return Container(
-      padding: const EdgeInsets.all(14),
+      padding: const EdgeInsets.all(16),
       decoration: BoxDecoration(
         color: const Color(0xFFEFF6FF),
-        borderRadius: BorderRadius.circular(14),
-        border: Border.all(color: const Color(0xFFBFDBFE)),
+        borderRadius: BorderRadius.circular(20),
+        border: Border.all(color: const Color(0xFFBFDBFE), width: 0.9),
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
@@ -454,23 +468,31 @@ class _WriteScreenState extends State<WriteScreen> {
           Row(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              const Icon(Icons.info_outline_rounded, color: Color(0xFF1D4ED8), size: 20),
+              Container(
+                padding: const EdgeInsets.all(6),
+                decoration: BoxDecoration(
+                  color: const Color(0xFFDBEAFE),
+                  borderRadius: BorderRadius.circular(10),
+                ),
+                child: const Icon(Icons.radar_rounded, color: Color(0xFF1D4ED8), size: 18),
+              ),
               const SizedBox(width: 10),
               Expanded(
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
                     const Text(
-                      'Physical Geofence Gate Enforced',
+                      'Physical Geofence Radar Enforced',
                       style: TextStyle(
                         color: Color(0xFF1E3A8A),
                         fontSize: 12.5,
-                        fontWeight: FontWeight.w800,
+                        fontWeight: FontWeight.w900,
+                        letterSpacing: -0.2,
                       ),
                     ),
                     const SizedBox(height: 2),
                     Text(
-                      'Simulations are strictly disabled. You can only enter and write posts under an event tag if your device is physically inside its verified radius.',
+                      'GroundTruth eliminates bot rumors. Posting is strictly restricted to devices physically inside the verified perimeter.',
                       style: TextStyle(
                         color: const Color(0xFF1E3A8A).withValues(alpha: 0.8),
                         fontSize: 11.5,
@@ -482,12 +504,12 @@ class _WriteScreenState extends State<WriteScreen> {
               ),
             ],
           ),
-          const SizedBox(height: 10),
+          const SizedBox(height: 12),
           Container(
-            padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
+            padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
             decoration: BoxDecoration(
               color: Colors.white,
-              borderRadius: BorderRadius.circular(10),
+              borderRadius: BorderRadius.circular(12),
               border: Border.all(color: const Color(0xFFDBEAFE)),
             ),
             child: Row(
@@ -503,14 +525,14 @@ class _WriteScreenState extends State<WriteScreen> {
                 Expanded(
                   child: Text(
                     locationService.isLocating
-                        ? 'Acquiring high-precision GPS satellite fix...'
+                        ? 'Acquiring high-precision GNSS satellite fix...'
                         : (locationService.hasRealGpsFix
                             ? 'GPS Location: ${locationService.displayLocationName}'
                             : (locationService.locationStatus ?? 'Checking device GPS location...')),
                     style: const TextStyle(
                       color: AppColors.primaryNavy,
                       fontSize: 11.5,
-                      fontWeight: FontWeight.w700,
+                      fontWeight: FontWeight.w800,
                     ),
                     maxLines: 1,
                     overflow: TextOverflow.ellipsis,
@@ -519,12 +541,12 @@ class _WriteScreenState extends State<WriteScreen> {
                 const SizedBox(width: 6),
                 InkWell(
                   onTap: () => locationService.refreshPhysicalLocation(),
-                  borderRadius: BorderRadius.circular(6),
+                  borderRadius: BorderRadius.circular(8),
                   child: Container(
                     padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
                     decoration: BoxDecoration(
                       color: const Color(0xFFEFF6FF),
-                      borderRadius: BorderRadius.circular(6),
+                      borderRadius: BorderRadius.circular(8),
                       border: Border.all(color: const Color(0xFFBFDBFE)),
                     ),
                     child: Row(
@@ -543,7 +565,7 @@ class _WriteScreenState extends State<WriteScreen> {
                           'Update GPS',
                           style: TextStyle(
                             color: Color(0xFF1D4ED8),
-                            fontSize: 10.5,
+                            fontSize: 10,
                             fontWeight: FontWeight.w800,
                           ),
                         ),
@@ -563,15 +585,25 @@ class _WriteScreenState extends State<WriteScreen> {
     final isSelected = _selectedCategory == category;
     return InkWell(
       onTap: () => setState(() => _selectedCategory = category),
-      borderRadius: BorderRadius.circular(16),
-      child: Container(
-        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+      borderRadius: BorderRadius.circular(20),
+      child: AnimatedContainer(
+        duration: const Duration(milliseconds: 200),
+        padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 7),
         decoration: BoxDecoration(
           color: isSelected ? AppColors.primaryNavy : Colors.white,
-          borderRadius: BorderRadius.circular(16),
+          borderRadius: BorderRadius.circular(20),
           border: Border.all(
             color: isSelected ? AppColors.primaryNavy : AppColors.border,
+            width: 0.9,
           ),
+          boxShadow: [
+            if (isSelected)
+              BoxShadow(
+                color: AppColors.primaryNavy.withValues(alpha: 0.18),
+                blurRadius: 8,
+                offset: const Offset(0, 2),
+              ),
+          ],
         ),
         child: Text(
           label,
@@ -613,32 +645,32 @@ class _WriteScreenState extends State<WriteScreen> {
     return Container(
       decoration: BoxDecoration(
         color: Colors.white,
-        borderRadius: BorderRadius.circular(16),
+        borderRadius: BorderRadius.circular(22),
         border: Border.all(
-          color: isInside ? const Color(0xFF86EFAC) : AppColors.border,
-          width: isInside ? 1.5 : 1.0,
+          color: isInside ? const Color(0xFF86EFAC) : AppColors.bentoBorder,
+          width: isInside ? 1.5 : 0.9,
         ),
         boxShadow: [
           BoxShadow(
             color: isInside
-                ? const Color(0xFF15803D).withValues(alpha: 0.07)
-                : Colors.black.withValues(alpha: 0.03),
-            blurRadius: 10,
-            offset: const Offset(0, 3),
+                ? const Color(0xFF15803D).withValues(alpha: 0.08)
+                : const Color(0x060F172A),
+            blurRadius: 14,
+            offset: const Offset(0, 4),
           ),
         ],
       ),
       child: Material(
         color: Colors.transparent,
-        borderRadius: BorderRadius.circular(16),
+        borderRadius: BorderRadius.circular(22),
         clipBehavior: Clip.antiAlias,
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            // Tappable Header & Body: clicking anywhere on the tag/body opens the tag feed page
+            // Tappable Header & Body
             InkWell(
               onTap: openTagFeed,
-              borderRadius: const BorderRadius.vertical(top: Radius.circular(16)),
+              borderRadius: const BorderRadius.vertical(top: Radius.circular(22)),
               child: Padding(
                 padding: const EdgeInsets.fromLTRB(16, 16, 16, 12),
                 child: Column(
@@ -647,36 +679,35 @@ class _WriteScreenState extends State<WriteScreen> {
                     // Header: Tag, Category, Radius
                     Row(
                       children: [
-                        // Tag Pill: Clicking opens the tag view / feed
                         Container(
                           padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
                           decoration: BoxDecoration(
-                            color: const Color(0xFFD0E1FD),
-                            borderRadius: BorderRadius.circular(12),
+                            color: const Color(0xFFEFF6FF),
+                            borderRadius: BorderRadius.circular(14),
+                            border: Border.all(color: const Color(0xFFBFDBFE), width: 0.8),
                           ),
                           child: Text(
                             ev.tagName,
                             style: const TextStyle(
                               color: AppColors.primaryNavy,
-                              fontSize: 12,
-                              fontWeight: FontWeight.w800,
+                              fontSize: 11.5,
+                              fontWeight: FontWeight.w900,
                             ),
                           ),
                         ),
                         const SizedBox(width: 8),
-                        // Category Pill
                         Container(
-                          padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+                          padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3.5),
                           decoration: BoxDecoration(
                             color: const Color(0xFFF1F5F9),
-                            borderRadius: BorderRadius.circular(6),
+                            borderRadius: BorderRadius.circular(8),
                             border: Border.all(color: AppColors.border),
                           ),
                           child: Text(
                             ev.category.label,
                             style: const TextStyle(
                               color: AppColors.textSecondary,
-                              fontSize: 10.5,
+                              fontSize: 10,
                               fontWeight: FontWeight.w700,
                             ),
                           ),
@@ -687,7 +718,7 @@ class _WriteScreenState extends State<WriteScreen> {
                           padding: const EdgeInsets.symmetric(horizontal: 9, vertical: 4),
                           decoration: BoxDecoration(
                             color: isInside ? const Color(0xFFDCFCE7) : const Color(0xFFF1F5F9),
-                            borderRadius: BorderRadius.circular(12),
+                            borderRadius: BorderRadius.circular(14),
                             border: Border.all(
                               color: isInside ? const Color(0xFF86EFAC) : AppColors.border,
                             ),
@@ -709,7 +740,7 @@ class _WriteScreenState extends State<WriteScreen> {
                                   'In Zone • ${ev.formattedRadius}',
                                   style: const TextStyle(
                                     color: Color(0xFF15803D),
-                                    fontSize: 10.5,
+                                    fontSize: 10,
                                     fontWeight: FontWeight.w800,
                                   ),
                                 ),
@@ -724,7 +755,7 @@ class _WriteScreenState extends State<WriteScreen> {
                                   '${GeofenceMath.formatDistance(distance)} away',
                                   style: const TextStyle(
                                     color: AppColors.textSecondary,
-                                    fontSize: 10.5,
+                                    fontSize: 10,
                                     fontWeight: FontWeight.w700,
                                   ),
                                 ),
@@ -742,13 +773,14 @@ class _WriteScreenState extends State<WriteScreen> {
                       style: const TextStyle(
                         color: AppColors.primaryNavy,
                         fontSize: 15.5,
-                        fontWeight: FontWeight.w800,
+                        fontWeight: FontWeight.w900,
                         height: 1.25,
+                        letterSpacing: -0.2,
                       ),
                     ),
                     const SizedBox(height: 4),
 
-                    // Subtitle (without "Verified Ground")
+                    // Subtitle
                     Text(
                       subtitleText,
                       style: const TextStyle(
@@ -764,7 +796,7 @@ class _WriteScreenState extends State<WriteScreen> {
                       padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 7),
                       decoration: BoxDecoration(
                         color: isInside ? const Color(0xFFF0FDF4) : const Color(0xFFF8FAFC),
-                        borderRadius: BorderRadius.circular(10),
+                        borderRadius: BorderRadius.circular(12),
                         border: Border.all(
                           color: isInside ? const Color(0xFFBBF7D0) : const Color(0xFFE2E8F0),
                         ),
@@ -791,7 +823,7 @@ class _WriteScreenState extends State<WriteScreen> {
                                   : 'Outside Boundary (${GeofenceMath.formatDistance(distance)} away)',
                               style: TextStyle(
                                 color: isInside ? const Color(0xFF15803D) : const Color(0xFF64748B),
-                                fontSize: 11.5,
+                                fontSize: 11,
                                 fontWeight: FontWeight.w700,
                               ),
                             ),
@@ -806,9 +838,9 @@ class _WriteScreenState extends State<WriteScreen> {
                               isInside ? 'UNLOCKED' : 'LOCKED',
                               style: TextStyle(
                                 color: isInside ? const Color(0xFF166534) : const Color(0xFF64748B),
-                                fontSize: 10,
-                                fontWeight: FontWeight.w800,
-                                letterSpacing: 0.5,
+                                fontSize: 9.5,
+                                fontWeight: FontWeight.w900,
+                                letterSpacing: 0.6,
                               ),
                             ),
                           ),
@@ -820,7 +852,7 @@ class _WriteScreenState extends State<WriteScreen> {
               ),
             ),
 
-            // Simplified Action CTA: Full-width button with simplified text (no tag name)
+            // Action CTA Button
             Padding(
               padding: const EdgeInsets.fromLTRB(16, 0, 16, 16),
               child: SizedBox(
@@ -832,7 +864,7 @@ class _WriteScreenState extends State<WriteScreen> {
                     elevation: 0,
                     padding: const EdgeInsets.symmetric(vertical: 12),
                     shape: RoundedRectangleBorder(
-                      borderRadius: BorderRadius.circular(12),
+                      borderRadius: BorderRadius.circular(14),
                       side: BorderSide(
                         color: isInside ? const Color(0xFF006C35) : const Color(0xFFE2E8F0),
                       ),
